@@ -54,9 +54,9 @@ class DfOptimizedAutomata
             const Transition *end = begin + mystate.ntrans;
             while (begin < end) { // binary search
                 const Transition *middle = begin + ((end - begin)>>1);
-                if (symbol.data() < middle->symbol.data())
+                if (symbol < middle->symbol)
                     end = middle;
-                else if (middle->symbol.data() < symbol.data())
+                else if (middle->symbol < symbol)
                     begin = middle + 1;
                 else // match
                     return middle->state;

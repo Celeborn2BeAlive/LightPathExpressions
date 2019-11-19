@@ -619,7 +619,7 @@ ndfautoToDfauto(const NdfAutomata &ndfautomata, DfAutomata &dfautomata)
 bool
 DfOptimizedAutomata::Transition::trans_comp (const DfOptimizedAutomata::Transition &a, const DfOptimizedAutomata::Transition &b)
 {
-    return a.symbol.data() < b.symbol.data();
+    return a.symbol < b.symbol;
 }
 
 
