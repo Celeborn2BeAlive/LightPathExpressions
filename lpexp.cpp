@@ -29,7 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "lpexp.h"
 
 
-OSL_NAMESPACE_ENTER
+namespace LPE {
 
 
 
@@ -217,4 +217,4 @@ lpexp::Rule::genAuto(NdfAutomata &automata)const
 }
 
 
-OSL_NAMESPACE_EXIT
+}

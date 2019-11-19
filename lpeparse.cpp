@@ -26,19 +26,19 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "accum.h"
 #include "lpeparse.h"
-#include <OSL/oslclosure.h>
-#include <OpenImageIO/dassert.h>
+#include <cassert>
+#include <iostream>
+
+namespace LPE {
 
 
-OSL_NAMESPACE_ENTER
 
+static std::string udot(".");
 
-
-static ustring udot(".");
-
-Parser::Parser(const std::vector<ustring> *user_events,
-               const std::vector<ustring> *user_scatterings)
+Parser::Parser(const std::vector<std::string> *user_events,
+               const std::vector<std::string> *user_scatterings)
 {
     m_ingroup = false;
     m_error = "";
@@ -107,7 +107,7 @@ LPexp *
 Parser::parseSymbol()
 {
     bool iscustom = false;
-    ustring sym = parseRawSymbol(iscustom);
+    std::string sym = parseRawSymbol(iscustom);
     if (m_ingroup) {
         if (sym == udot)
             return new lpexp::Wildexp(m_minus_stop);
@@ -140,7 +140,7 @@ Parser::parseSymbol()
 
 
 
-ustring
+std::string
 Parser::parseRawSymbol(bool &iscustom)
 {
     std::string sym;
@@ -164,7 +164,7 @@ Parser::parseRawSymbol(bool &iscustom)
     // hacky alias for NONE label
     if (!iscustom && sym == "x")
         return Labels::NONE;
-    return ustring(sym);
+    return std::string(sym);
 }
 
 
@@ -233,7 +233,7 @@ Parser::parseCat()
 LPexp *
 Parser::parseGroup()
 {
-    ASSERT(head() == '<');
+    assert(head() == '<');
     if (m_ingroup) {
         m_error = "No groups allowed inside of groups";
         return NULL;
@@ -275,14 +275,14 @@ Parser::parseGroup()
 LPexp *
 Parser::parseNegor()
 {
-    ASSERT (head() == '^');
+    assert (head() == '^');
     SymbolSet symlist;
     symlist.insert(Labels::STOP); // never allowed
     int pos = -1;
     next();
     while (hasInput() && head() != ']') {
         bool iscustom;
-        ustring sym = parseRawSymbol(iscustom);
+        std::string sym = parseRawSymbol(iscustom);
         if (error()) return NULL;
         symlist.insert(sym);
         if (iscustom) {
@@ -333,7 +333,7 @@ Parser::parseNegor()
 LPexp *
 Parser::parseOrlist()
 {
-    ASSERT(head() == '[');
+    assert(head() == '[');
     next();
     if (hasInput() && head() == '^')
         return parseNegor();
@@ -362,7 +362,7 @@ Parser::parseOrlist()
 std::pair<int, int>
 Parser::parseRange()
 {
-    ASSERT(head() == '{');
+    assert(head() == '{');
     next();
     std::string firstnum = "";
     while (hasInput() && '0' <= head() && head() <= '9') {
@@ -461,4 +461,4 @@ Parser::parse(const char *text)
 }
 
 
-OSL_NAMESPACE_EXIT
+}

@@ -34,11 +34,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <string>
 
-#include <OSL/oslconfig.h>
 
 
-OSL_NAMESPACE_ENTER
+namespace LPE {
 
 
 // General container for all symbol sets
@@ -46,12 +46,12 @@ OSL_NAMESPACE_ENTER
 // General container for integer sets
 typedef std::set<int> IntSet; // probably faster to test for equality, unions and so
 
-typedef std::unordered_set<ustring, ustringHash> SymbolSet;
+typedef std::unordered_set<std::string> SymbolSet;
 // This is for the transition table used in DfAutomata::State
-typedef std::unordered_map<ustring, int, ustringHash> SymbolToInt;
+typedef std::unordered_map<std::string, int> SymbolToInt;
 // And this is for the transition table in NdfAutomata which
 // has several movements for each symbol
-typedef std::unordered_map<ustring, IntSet, ustringHash> SymbolToIntList;
+typedef std::unordered_map<std::string, IntSet> SymbolToIntList;
 typedef std::unordered_map<int, int> HashIntInt;
 
 // For the rules in the deterministic states, we don't need a real set
@@ -60,7 +60,7 @@ typedef std::unordered_map<int, int> HashIntInt;
 typedef std::vector<void *> RuleSet;
 
 // The lambda symbol (empty word)
-extern ustring lambda;
+extern std::string lambda;
 
 
 /// This struct represent a wildcard (for wildcard transitions)
@@ -71,7 +71,7 @@ struct Wildcard {
     Wildcard() {};
     Wildcard(SymbolSet &minus):m_minus(minus) {};
 
-    bool matches(ustring symbol)const
+    bool matches(std::string symbol)const
     {
         // true if the given symbol is not in m_minus
         return (m_minus.find(symbol) == m_minus.end());
@@ -107,7 +107,7 @@ class NdfAutomata {
                 ///
                 /// It doesn't clean the given result set, so you can use this
                 /// function to accumulate states.
-                void getTransitions (ustring symbol, IntSet &out_states)const;
+                void getTransitions (std::string symbol, IntSet &out_states)const;
 
                 /// Get all the lambda transitions
                 ///
@@ -116,7 +116,7 @@ class NdfAutomata {
                     getLambdaTransitions ()const;
 
                 /// Add a standar transition (also valid for lambda)
-                void addTransition (ustring symbol, State *state);
+                void addTransition (std::string symbol, State *state);
                 /// Add a wildcard transition
                 ///
                 /// Note that the state is going to take ownership of the wildcard
@@ -174,7 +174,7 @@ class NdfAutomata {
         void symbolsFrom(const IntSet &states, SymbolSet &out_symbols, Wildcard *&wildcard)const;
 
         /// Get the set of states that are reachable from the given state set using the given symbol
-        void transitionsFrom(const IntSet &states, ustring symbol, IntSet &out_states)const;
+        void transitionsFrom(const IntSet &states, std::string symbol, IntSet &out_states)const;
         /// Get the set of states that are reachable from the given state set by lambda
         void wildcardTransitionsFrom(const IntSet &states, IntSet &out_states)const;
 
@@ -229,10 +229,10 @@ class DfAutomata {
                 //
                 /// Returns -1 if no transitions with that symbol. That means the
                 /// symbol is not recognized at this point of the automata
-                int getTransition(ustring symbol)const;
+                int getTransition(std::string symbol)const;
 
                 // Same semantics as in NdfAutomata::State
-                void addTransition(ustring symbol, State *state);
+                void addTransition(std::string symbol, State *state);
                 // WARNING: this has an optimized representation and has to be called
                 // always AFTER all the normal transitions have been added
                 void addWildcardTransition(Wildcard *wildcard, State *state);
@@ -334,4 +334,4 @@ class StateSetRecord {
 /// one. It is equivalente in the sense that they  both recognize the same language
 void ndfautoToDfauto(const NdfAutomata &ndfautomata, DfAutomata &dfautomata);
 
-OSL_NAMESPACE_EXIT
+}

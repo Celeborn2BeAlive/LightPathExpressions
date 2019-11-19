@@ -28,12 +28,57 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <OSL/oslconfig.h>
-#include <OSL/optautomata.h>
+#include "optautomata.h"
 #include <list>
 #include <stack>
+#include <string>
 
-OSL_NAMESPACE_ENTER
+namespace LPE {
+
+struct Labels
+{
+    static const std::string NONE;
+    // Event type
+    static const std::string CAMERA;
+    static const std::string LIGHT;
+    static const std::string BACKGROUND;
+    static const std::string TRANSMIT;
+    static const std::string REFLECT;
+    static const std::string VOLUME;
+    static const std::string OBJECT;
+    // Scattering
+    static const std::string DIFFUSE;  // typical 2PI hemisphere
+    static const std::string GLOSSY;   // blurry reflections and transmissions
+    static const std::string SINGULAR; // perfect mirrors and glass
+    static const std::string STRAIGHT; // Special case for transparent shadows
+
+    static const std::string STOP; // end of a surface description
+};
+
+struct Color3
+{
+    float x, y, z;
+
+    Color3() = default;
+
+    Color3(float x, float y, float z) : x{x}, y{y}, z{z} {}
+
+    void
+    setValue(float _r, float _g, float _b)
+    {
+        x = _r;
+        y = _g;
+        z = _b;
+    }
+
+    Color3 &operator+=(const Color3 &other)
+    {
+        x += other.x;
+        y += other.y;
+        z += other.z;
+        return *this;
+    }
+};
 
 class Aov
 {
@@ -84,7 +129,7 @@ struct AovOutput
 /// This is the entity being linked from the automata. At any state, if
 /// it is final, you will find pointers to these objects. They already know
 /// what output to use and how. Multiple rules can point to the same AOV.
-class OSLEXECPUBLIC AccumRule
+class AccumRule
 {
     public:
         /// Create a rule for accumulating results to an AOV
@@ -124,16 +169,16 @@ class Rule;
 /// It consists of a basic DF automata from optautomata.h and a list
 /// of rules which are linked from the DFA final states. It is constant
 /// along the render process, doesn't keep any state.
-class OSLEXECPUBLIC AccumAutomata
+class AccumAutomata
 {
     public:
 
         ~AccumAutomata();
 
         /// Support the given symbol as event tag on lpe expressions
-        void addEventType(ustring symbol) { m_user_events.push_back(symbol); };
+        void addEventType(std::string symbol) { m_user_events.push_back(symbol); };
         /// Support the given symbol as scattering tag on lpe expressions
-        void addScatteringType(ustring symbol) { m_user_scatterings.push_back(symbol); };
+        void addScatteringType(std::string symbol) { m_user_scatterings.push_back(symbol); };
 
         /// Add a single rule for rendering outputs
         ///
@@ -151,7 +196,7 @@ class OSLEXECPUBLIC AccumAutomata
         void accum(int state, const Color3 &color, std::vector<AovOutput> &outputs)const;
 
         /// Get an specific transition
-        int getTransition(int state, ustring symbol)const { return m_dfoptautomata.getTransition(state, symbol); };
+        int getTransition(int state, std::string symbol)const { return m_dfoptautomata.getTransition(state, symbol); };
 
         /// The rule list is for public use in read-only, so Accumulator knows what AOVS are we using
         const std::list<AccumRule> &getRuleList()const { return m_accumrules; };
@@ -169,9 +214,9 @@ class OSLEXECPUBLIC AccumAutomata
         // List of rules linked as void * from the automata's states
         std::list<AccumRule>     m_accumrules;
         // Custom symbols to support on expressions as events
-        std::vector<ustring>     m_user_events;
+        std::vector<std::string>     m_user_events;
         // Custom symbols to support on expressions as scattering
-        std::vector<ustring>     m_user_scatterings;
+        std::vector<std::string>     m_user_scatterings;
 };
 
 
@@ -182,7 +227,7 @@ class OSLEXECPUBLIC AccumAutomata
 /// integrator functions during the light walk. Knows what state
 /// we are at and keeps record of the accumulated values (AovOutput)
 ///
-class OSLEXECPUBLIC Accumulator
+class Accumulator
 {
     public:
         Accumulator(const AccumAutomata *accauto);
@@ -196,19 +241,19 @@ class OSLEXECPUBLIC Accumulator
         void popState();
 
         /// Push a single label
-        void move(ustring symbol);
+        void move(std::string symbol);
 
         /// Push a NONE terminated array of labels
-        void move(const ustring *symbols);
+        void move(const std::string *symbols);
 
         /// very commonly we push all labels, this helps reducing code. custom can be NULL
         /// and although the last label is always stop, we leave the argument to make the
         /// code show that there is a STOP label there.
-        void move(ustring event, ustring scatt, const ustring *custom, ustring stop);
+        void move(std::string event, std::string scatt, const std::string *custom, std::string stop);
 
         /// Check if a given movement is possible without breaking the automata.
         /// Leaves the state untouched
-        bool test(ustring dir, ustring sca, const ustring * custom, ustring stop)
+        bool test(std::string dir, std::string sca, const std::string * custom, std::string stop)
         {
             pushState();
             move(dir, sca, custom, stop);
@@ -252,4 +297,4 @@ class OSLEXECPUBLIC Accumulator
 };
 
 
-OSL_NAMESPACE_EXIT
+} // namespace LPE

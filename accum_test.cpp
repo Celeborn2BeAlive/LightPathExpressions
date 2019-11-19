@@ -26,10 +26,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <OSL/accum.h>
-#include <OSL/oslclosure.h>
+#include "accum.h"
+#include <cassert>
+#include <iostream>
 
-using namespace OSL;
+using namespace LPE;
 
 #define END_AOV 65535
 
@@ -96,7 +97,7 @@ void simulate(Accumulator &accum, const char **events, int testno)
         const char *e = *events;
         // for each label in this hit
         while (*e) {
-            ustring sym(e, 1);
+            std::string sym(e, 1);
             // advance our state with the label
             accum.move(sym);
             e++;
@@ -128,7 +129,7 @@ int main()
     const int naovs        = 10;
 
     // The actual test cases. Each one is a list of ray hits with some labels.
-    // We use 1 char labels for convenience. They will be converted to ustrings
+    // We use 1 char labels for convenience. They will be converted to std::strings
     // by simulate. And then a list of expected AOV's for each.
     TestPath test[] = { { { "C_", "TS",  "TS", "RD", "L_", NULL },             { beauty, specular, nocaustic, END_AOV} },
                               { { "C_", "TS",  "TS", "RD", "RG", "L_", NULL }, { END_AOV } },
@@ -153,19 +154,19 @@ int main()
     // Create the automata and add the rules
     AccumAutomata automata;
 
-    automata.addEventType(ustring("U"));
-    automata.addScatteringType(ustring("Y"));
+    automata.addEventType(std::string("U"));
+    automata.addScatteringType(std::string("Y"));
 
-    ASSERT(automata.addRule("C[SG]*D*L",        beauty));
-    ASSERT(automata.addRule("C[SG]*D{2,3}L",    diffuse2_3));
-    ASSERT(automata.addRule("C[SG]*D*<L.'3'>",  light3));
-    ASSERT(automata.addRule("C[SG]*<.D'1'>D*L", object_1));
-    ASSERT(automata.addRule("C<.[SG]>+D*L",     specular));
-    ASSERT(automata.addRule("CD+L",             diffuse));
-    ASSERT(automata.addRule("CD+<Ts>L",         transpshadow));
-    ASSERT(automata.addRule("C<R[^D]>+D*L",     reflections));
-    ASSERT(automata.addRule("C([SG]*D){1,2}L",  nocaustic));
-    ASSERT(automata.addRule("CDY+U",            custom));
+    assert(automata.addRule("C[SG]*D*L",        beauty));
+    assert(automata.addRule("C[SG]*D{2,3}L",    diffuse2_3));
+    assert(automata.addRule("C[SG]*D*<L.'3'>",  light3));
+    assert(automata.addRule("C[SG]*<.D'1'>D*L", object_1));
+    assert(automata.addRule("C<.[SG]>+D*L",     specular));
+    assert(automata.addRule("CD+L",             diffuse));
+    assert(automata.addRule("CD+<Ts>L",         transpshadow));
+    assert(automata.addRule("C<R[^D]>+D*L",     reflections));
+    assert(automata.addRule("C([SG]*D){1,2}L",  nocaustic));
+    assert(automata.addRule("CDY+U",            custom));
 
     automata.compile();
 
@@ -182,15 +183,15 @@ int main()
 
     // And check. We unroll this loop for boost to give us a useful
     // error in case they fail
-    ASSERT(aovs[beauty      ].check());
-    ASSERT(aovs[diffuse2_3  ].check());
-    ASSERT(aovs[light3      ].check());
-    ASSERT(aovs[object_1    ].check());
-    ASSERT(aovs[specular    ].check());
-    ASSERT(aovs[diffuse     ].check());
-    ASSERT(aovs[transpshadow].check());
-    ASSERT(aovs[reflections ].check());
-    ASSERT(aovs[nocaustic   ].check());
+    assert(aovs[beauty      ].check());
+    assert(aovs[diffuse2_3  ].check());
+    assert(aovs[light3      ].check());
+    assert(aovs[object_1    ].check());
+    assert(aovs[specular    ].check());
+    assert(aovs[diffuse     ].check());
+    assert(aovs[transpshadow].check());
+    assert(aovs[reflections ].check());
+    assert(aovs[nocaustic   ].check());
 
     std::cout << "Light expressions check OK" << std::endl;
 }

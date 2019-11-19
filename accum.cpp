@@ -26,15 +26,33 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <OSL/accum.h>
-#include <OSL/oslclosure.h>
+#include "accum.h"
 #include "lpeparse.h"
-#include <OpenImageIO/dassert.h>
+#include <cassert>
+#include <iostream>
 
+namespace LPE {
 
-OSL_NAMESPACE_ENTER
+// Taken from oslclosure.h/.cpp in OSL source code
 
+const std::string Labels::NONE = "__none__"; // #warning in OSL source code it was set to NULL because they use ustring
+// Event type
+const std::string Labels::CAMERA = "C";
+const std::string Labels::LIGHT = "L";
+const std::string Labels::BACKGROUND = "B";
+const std::string Labels::TRANSMIT = "T";
+const std::string Labels::REFLECT = "R";
+const std::string Labels::VOLUME = "V";
+const std::string Labels::OBJECT = "O";
+// Scattering
+const std::string Labels::DIFFUSE = "D";  // typical 2PI hemisphere
+const std::string Labels::GLOSSY = "G";   // blurry reflections and transmissions
+const std::string Labels::SINGULAR = "S"; // perfect mirrors and glass
+const std::string Labels::STRAIGHT = "s"; // Special case for transparent shadows
 
+const std::string Labels::STOP = "__stop__"; // end of a surface description
+
+// end Taken from oslclosure.h/.cpp in OSL source code
 
 void
 AovOutput::flush(void *flush_data)
@@ -147,7 +165,7 @@ Accumulator::Accumulator(const AccumAutomata *accauto):m_accum_automata(accauto)
 void
 Accumulator::setAov(int outidx, Aov *aov, bool neg_color, bool neg_alpha)
 {
-    ASSERT (0 <= outidx && outidx < (int) m_outputs.size());
+    assert (0 <= outidx && outidx < (int) m_outputs.size());
     m_outputs[outidx].aov = aov;
     m_outputs[outidx].neg_color = neg_color;
     m_outputs[outidx].neg_alpha = neg_alpha;
@@ -158,7 +176,7 @@ Accumulator::setAov(int outidx, Aov *aov, bool neg_color, bool neg_alpha)
 void
 Accumulator::pushState()
 {
-    ASSERT (m_state >= 0);
+    assert (m_state >= 0);
     m_stack.push(m_state);
 }
 
@@ -167,7 +185,7 @@ Accumulator::pushState()
 void
 Accumulator::popState()
 {
-    ASSERT (m_stack.size());
+    assert (m_stack.size());
     m_state = m_stack.top();
     m_stack.pop();
 }
@@ -175,7 +193,7 @@ Accumulator::popState()
 
 
 void
-Accumulator::move(ustring symbol)
+Accumulator::move(std::string symbol)
 {
     if (m_state >= 0)
         m_state = m_accum_automata->getTransition(m_state, symbol);
@@ -184,7 +202,7 @@ Accumulator::move(ustring symbol)
 
 
 void
-Accumulator::move(const ustring *symbols)
+Accumulator::move(const std::string *symbols)
 {
     while (m_state >= 0 && symbols && *symbols != Labels::NONE)
         m_state = m_accum_automata->getTransition(m_state, *(symbols++));
@@ -193,7 +211,7 @@ Accumulator::move(const ustring *symbols)
 
 
 void
-Accumulator::move(ustring event, ustring scatt, const ustring *custom, ustring stop)
+Accumulator::move(std::string event, std::string scatt, const std::string *custom, std::string stop)
 {
     if (m_state >= 0)
         m_state = m_accum_automata->getTransition(m_state, event);
@@ -223,4 +241,4 @@ Accumulator::end(void *flush_data)
         m_outputs[i].flush(flush_data);
 }
 
-OSL_NAMESPACE_EXIT
+}

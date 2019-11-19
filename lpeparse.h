@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "lpexp.h"
 
 
-OSL_NAMESPACE_ENTER
+namespace LPE {
 
 
 
@@ -61,8 +61,8 @@ class Parser
 {
     public:
 
-        Parser(const std::vector<ustring> *user_events = NULL,
-               const std::vector<ustring> *user_scatterings = NULL);
+        Parser(const std::vector<std::string> *user_events = NULL,
+               const std::vector<std::string> *user_scatterings = NULL);
 
         /// Parse a string and return the resulting light path expression tree or NULL if failed
         LPexp *parse(const char *text);
@@ -103,9 +103,9 @@ class Parser
         LPexp *buildStop(LPexp *etype, LPexp *scatter, const std::list<LPexp*> &custom);
         /// Gicen that a symbol is ready in head() to parse, parse it
         LPexp *parseSymbol();
-        /// Gicen that a symbol is ready in head() to parse, parse it as a ustring
+        /// Gicen that a symbol is ready in head() to parse, parse it as a std::string
         /// and report it was a custom symbol in the iscustom flag
-        ustring parseRawSymbol(bool &iscustom);
+        std::string parseRawSymbol(bool &iscustom);
         /// Given that the begining of a concatenation of regexps is ready to parse, parse it
         /// and it can be optionally be enclosed in parentheis ()
         LPexp *parseCat();
@@ -146,4 +146,4 @@ class Parser
 };
 
 
-OSL_NAMESPACE_EXIT
+}

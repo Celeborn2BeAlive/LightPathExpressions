@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "automata.h"
 
-OSL_NAMESPACE_ENTER
+namespace LPE {
 
 
 namespace lpexp {
@@ -106,7 +106,7 @@ class Cat : public LPexp {
 /// Basic symbol like G or 'customlabel'
 class Symbol : public LPexp {
     public:
-        Symbol(ustring sym) { m_sym = sym; };
+        Symbol(std::string sym) { m_sym = sym; };
         virtual ~Symbol() {};
 
         virtual FirstLast genAuto(NdfAutomata &automata)const;
@@ -114,8 +114,8 @@ class Symbol : public LPexp {
         virtual LPexp * clone()const { return new Symbol(*this); };
 
     protected:
-        // All symbols are unique ustrings
-        ustring m_sym;
+        // All symbols are unique std::strings
+        std::string m_sym;
 };
 
 
@@ -206,4 +206,4 @@ class Rule
 
 } // namespace regexp
 
-OSL_NAMESPACE_EXIT
+}

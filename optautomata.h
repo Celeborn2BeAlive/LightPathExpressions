@@ -28,11 +28,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <OpenImageIO/ustring.h>
-
 #include <vector>
 
-OSL_NAMESPACE_ENTER
+namespace LPE {
 
 class DfAutomata;
 
@@ -49,7 +47,7 @@ class DfOptimizedAutomata
 
         void compileFrom(const DfAutomata &dfautomata);
 
-        int getTransition(int state, ustring symbol)const
+        int getTransition(int state, std::string symbol)const
         {
             const State &mystate = m_states[state];
             const Transition *begin = &m_trans[mystate.begin_trans];
@@ -85,7 +83,7 @@ class DfOptimizedAutomata
         {
             // we use this only for sorting
             static bool trans_comp (const Transition &a, const Transition &b);
-            ustring symbol;
+            std::string symbol;
             int      state;
         };
         std::vector<Transition> m_trans;
@@ -93,4 +91,4 @@ class DfOptimizedAutomata
         std::vector<State>      m_states;
 };
 
-OSL_NAMESPACE_EXIT
+}
