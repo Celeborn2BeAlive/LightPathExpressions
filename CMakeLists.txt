@@ -9,12 +9,13 @@ set(SRC_FILES
   src/lpeparse.h 
   src/lpexp.h 
   src/lpexp.cpp
-  src/optautomata.h
   src/accum.cpp
-  src/accum.h
+  include/LPE/accum.h
+  include/LPE/optautomata.h
 )
 
-add_library(LPE SHARED ${SRC_FILES})
+add_library(LPE STATIC ${SRC_FILES})
+target_include_directories(LPE PUBLIC include)
 
-add_executable(accum_test tests/accum_test.cpp ${SRC_FILES})
-target_include_directories(accum_test PRIVATE src)
+add_executable(accum_test tests/accum_test.cpp)
+target_link_libraries(accum_test LPE)
