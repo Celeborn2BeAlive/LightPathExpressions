@@ -194,4 +194,6 @@ int main()
     assert(aovs[nocaustic   ].check());
 
     std::cout << "Light expressions check OK" << std::endl;
+
+    return 0;
 }
