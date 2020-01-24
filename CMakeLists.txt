@@ -19,3 +19,6 @@ target_include_directories(LPE PUBLIC include)
 
 add_executable(accum_test tests/accum_test.cpp)
 target_link_libraries(accum_test LPE)
+
+add_executable(accum_test2 tests/accum_test2.cpp)
+target_link_libraries(accum_test2 LPE)
