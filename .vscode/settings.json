@@ -1,4 +1,8 @@
 {
   "C_Cpp.default.configurationProvider": "vector-of-bool.cmake-tools",
-  "cmake.buildDirectory": "${workspaceFolder}/../build-LightPathExpressions"
+  "cmake.buildDirectory": "${workspaceFolder}/../build-LightPathExpressions",
+  "files.associations": {
+    "vector": "cpp",
+    "xiosbase": "cpp"
+  }
 }

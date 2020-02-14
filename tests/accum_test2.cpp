@@ -37,35 +37,63 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace LPE;
 
-#define END_AOV 65535
-
-typedef struct
+struct RayEvent
 {
-  const char *path[16]; // Array of events of the path
-  int expected[8];      // What aovs are expected for this path
-} TestPath;
+  const char *eventType;
+  const char *scatteringType;
+  const char *object;
+
+  RayEvent(const char *e, const char *s, const char *o = nullptr) :
+      eventType{e},
+      scatteringType{s},
+      object{o}
+  {
+  }
+};
+
+struct TestPath
+{
+  std::vector<RayEvent> events; // Array of events of the path
+  std::vector<int> expected;    // What aovs are expected for this path
+
+  TestPath(std::vector<RayEvent> e, std::vector<int> ex) :
+      events{std::move(e)},
+      expected{std::move(ex)}
+  {
+  }
+};
 
 // This is a fake AOV implementation. It will just keep track
 // of what test cases wrote to it
 class MyAov : public Aov
 {
 public:
-  MyAov(const TestPath *test, int id)
+  std::string name;
+
+  std::vector<bool> m_expected;
+  std::vector<bool> m_received;
+
+  MyAov(const std::vector<TestPath> &tests, int id, std::string name) :
+      name{std::move(name)}
   {
     // Init for the test case array. For each test case set a bool
     // in m_expected marking wether this AOV should get soem color
     // from that test or not.
-    for (int i = 0; test[i].path[0]; ++i) { // iterate test cases
-      m_expected.push_back(false);          // false by default
-      for (const int *expected = test[i].expected; *expected != END_AOV;
-           ++expected)
-        if (*expected == id)
-          // if the AOV id is on the test's expected list, set it to true
+    for (size_t i = 0; i < tests.size(); ++i) {
+      const auto &test = tests[i];
+      m_expected.push_back(false);
+      for (const auto expected : test.expected) {
+        if (expected == id) {
           m_expected[i] = true;
+        }
+      }
     }
+
     m_received.resize(m_expected.size());
   }
-  virtual ~MyAov() {}
+  virtual ~MyAov()
+  {
+  }
 
   virtual void write(void *flush_data, Color3 &color, float alpha,
       bool has_color, bool has_alpha)
@@ -81,32 +109,30 @@ public:
       m_received[testno] = false;
   }
 
-  bool check() { return m_expected == m_received; }
-
-protected:
-  std::vector<bool> m_expected;
-  std::vector<bool> m_received;
+  bool check() const
+  {
+    return m_expected == m_received;
+  }
 };
 
 // Simulate the tracing of a path with the accumulator
-void simulate(Accumulator &accum, const char **events, int testno)
+void simulate(
+    Accumulator &accum, const std::vector<RayEvent> &events, int testno)
 {
   accum.begin();
   accum.pushState();
-  // for each ray stop in the path (see test cases) ...
-  while (*events) {
-    const char *e = *events;
-    // for each label in this hit
-    while (*e) {
-      std::string sym(e, 1);
-      // advance our state with the label
-      accum.move(sym);
-      e++;
+
+  for (const auto &e : events) {
+    accum.move(e.eventType);
+    if (e.scatteringType) {
+      accum.move(e.scatteringType);
     }
-    // always finish the hit with a stop label
+    if (e.object) {
+      accum.move(e.object);
+    }
     accum.move(Labels::STOP);
-    events++;
   }
+
   // Here is were we have reached a light, accumulate color
   accum.accum(Color3(1, 1, 1));
   // Restore state and flush
@@ -114,49 +140,100 @@ void simulate(Accumulator &accum, const char **events, int testno)
   accum.end((void *)(long int)testno);
 }
 
+// Some constants to avoid refering to AOV's by number
+enum {
+  beauty,
+  diffuse2_3,
+  light3,
+  object_1,
+  specular,
+  diffuse,
+  transpshadow,
+  reflections,
+  nocaustic,
+  custom,
+  naovs
+};
+
+struct AovDesc
+{
+  const char *name;
+  const char *lpe;
+};
+
+// clang-format off
+
+const AovDesc aovDescs[] = 
+{
+  {"beauty",        "C[SG]*D*<L..>"},
+  {"diffuse2_3",    "C[SG]*D{2,3}L"},
+  {"light3",        "C[SG]*D*<L.'3'>"},
+  {"object_1",      "C[SG]*<.D'1'>D*L"},
+  {"specular",      "C<.[SG]>+D*L"},
+  {"diffuse",       "CD+L"},
+  {"transpshadow",  "CD+<Ts>L"},
+  {"reflections",   "C<R[^D]>+D*L"},
+  {"nocaustic",     "C([SG]*D){1,2}L"},
+  {"custom",        "CDY+U"}
+};
+
+// clang-format on
+
 int main()
 {
-  // Some constants to avoid refering to AOV's by number
-  const int beauty = 0;
-  const int diffuse2_3 = 1;
-  const int light3 = 2;
-  const int object_1 = 3;
-  const int specular = 4;
-  const int diffuse = 5;
-  const int transpshadow = 6;
-  const int reflections = 7;
-  const int nocaustic = 8;
-  const int custom = 9;
-  const int naovs = 10;
+  TestPath test1{
+      {{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"L", "_", "1"}},
+      {beauty, specular, nocaustic}};
 
-  // The actual test cases. Each one is a list of ray hits with some labels.
-  // We use 1 char labels for convenience. They will be converted to
-  // std::strings by simulate. And then a list of expected AOV's for each.
-  TestPath test[] = {{{"C_", "TS", "TS", "RD", "L_", NULL},
-                         {beauty, specular, nocaustic, END_AOV}},
-      {{"C_", "TS", "TS", "RD", "RG", "L_", NULL}, {END_AOV}},
-      {{"C_", "TS", "TS", "RD", "RD", "L_", NULL},
-          {beauty, specular, diffuse2_3, nocaustic, END_AOV}},
-      {{"C_", "RG", "RD", "RG", "RD", "RG", "RD", "L_", NULL}, {END_AOV}},
-      {{"C_", "RG", "RD", "RG", "RD", "L_", NULL}, {nocaustic, END_AOV}},
-      {{"C_", "RD", "RD", "L_", NULL},
-          {beauty, diffuse, diffuse2_3, nocaustic, END_AOV}},
-      {{"C_", "RD", "RS", "RD", "L_", NULL}, {nocaustic, END_AOV}},
-      {{"C_", "RD", "Ts", "L_", NULL}, {transpshadow, END_AOV}},
-      {{"C_", "TS", "TS", "RD", "L_3", NULL},
-          {beauty, specular, light3, nocaustic, END_AOV}},
-      {{"C_", "RD1", "RD", "L_", NULL},
-          {beauty, diffuse, diffuse2_3, object_1, nocaustic, END_AOV}},
-      {{"C_", "RS", "RD", "RG", "L_", NULL}, {END_AOV}},
-      {{"C_", "RS", "RD", "L_", NULL},
-          {beauty, specular, reflections, nocaustic, END_AOV}},
-      {{"C_", "RD", "RY", "RD", "U_", NULL}, {custom, END_AOV}},
-      {{NULL}, {END_AOV}}};
+  TestPath test2{{{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"R", "G"},
+                     {"L", "_", "1"}},
+      {}};
+
+  TestPath test3{{{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"R", "D"},
+                     {"L", "_", "1"}},
+      {beauty, specular, diffuse2_3, nocaustic}};
+
+  TestPath test4{{{"C", "_"}, {"R", "G"}, {"R", "D"}, {"R", "G"}, {"R", "D"},
+                     {"R", "G"}, {"R", "D"}, {"L", "_", "1"}},
+      {}};
+
+  TestPath test5{{{"C", "_"}, {"R", "G"}, {"R", "D"}, {"R", "G"}, {"R", "D"},
+                     {"L", "_", "1"}},
+      {nocaustic}};
+
+  TestPath test6{{{"C", "_"}, {"R", "D"}, {"R", "D"}, {"L", "_", "1"}},
+      {beauty, diffuse, diffuse2_3, nocaustic}};
+
+  TestPath test7{
+      {{"C", "_"}, {"R", "D"}, {"R", "S"}, {"R", "D"}, {"L", "_", "1"}},
+      {nocaustic}};
+
+  TestPath test8{
+      {{"C", "_"}, {"R", "D"}, {"T", "s"}, {"L", "_"}}, {transpshadow}};
+
+  TestPath test9{
+      {{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"L", "_", "3"}},
+      {beauty, specular, light3, nocaustic}};
+
+  TestPath test10{{{"C", "_"}, {"R", "D", "1"}, {"R", "D"}, {"L", "_", "1"}},
+      {beauty, diffuse, diffuse2_3, object_1, nocaustic}};
+
+  TestPath test11{
+      {{"C", "_"}, {"R", "S"}, {"R", "D"}, {"R", "G"}, {"L", "_", "1"}}, {}};
+
+  TestPath test12{{{"C", "_"}, {"R", "S"}, {"R", "D"}, {"L", "_", "1"}},
+      {beauty, specular, reflections, nocaustic}};
+
+  TestPath test13{
+      {{"C", "_"}, {"R", "D"}, {"R", "Y"}, {"T", "Y"}, {"U", "_"}}, {custom}};
+
+  std::vector<TestPath> test = {test1, test2, test3, test4, test5, test6, test7,
+      test8, test9, test10, test11, test12, test13};
 
   // Create our fake testing AOV's
   std::vector<MyAov> aovs;
   for (int i = 0; i < naovs; ++i)
-    aovs.emplace_back(test, i);
+    aovs.emplace_back(test, i, aovDescs[i].name);
 
   // Create the automata and add the rules
   AccumAutomata automata;
@@ -164,16 +241,9 @@ int main()
   automata.addEventType(std::string("U"));
   automata.addScatteringType(std::string("Y"));
 
-  assert(automata.addRule("C[SG]*D*L", beauty));
-  assert(automata.addRule("C[SG]*D{2,3}L", diffuse2_3));
-  assert(automata.addRule("C[SG]*D*<L.'3'>", light3));
-  assert(automata.addRule("C[SG]*<.D'1'>D*L", object_1));
-  assert(automata.addRule("C<.[SG]>+D*L", specular));
-  assert(automata.addRule("CD+L", diffuse));
-  assert(automata.addRule("CD+<Ts>L", transpshadow));
-  assert(automata.addRule("C<R[^D]>+D*L", reflections));
-  assert(automata.addRule("C([SG]*D){1,2}L", nocaustic));
-  assert(automata.addRule("CDY+U", custom));
+  for (size_t i = 0; i < aovs.size(); ++i) {
+    assert(automata.addRule(aovDescs[i].lpe, int(i)));
+  }
 
   automata.compile();
 
@@ -185,22 +255,28 @@ int main()
     accum.setAov(i, &aovs[i], false, false);
 
   // do the simulation for each test case
-  for (int i = 0; test[i].path[0]; ++i)
-    simulate(accum, test[i].path, i);
+  for (size_t i = 0; i < test.size(); ++i)
+    simulate(accum, test[i].events, i);
 
   // And check. We unroll this loop for boost to give us a useful
   // error in case they fail
-  assert(aovs[beauty].check());
-  assert(aovs[diffuse2_3].check());
-  assert(aovs[light3].check());
-  assert(aovs[object_1].check());
-  assert(aovs[specular].check());
-  assert(aovs[diffuse].check());
-  assert(aovs[transpshadow].check());
-  assert(aovs[reflections].check());
-  assert(aovs[nocaustic].check());
+  bool fail = false;
+  for (const auto &aov : aovs) {
+    if (!aov.check()) {
+      std::cerr << "Check failed for aov " << aov.name << std::endl;
+      for (size_t i = 0; i < aov.m_expected.size(); ++i) {
+        if (aov.m_expected[i] != aov.m_received[i]) {
+          std::cerr << " - failed for path " << (i + 1) << " expected "
+                    << int(aov.m_expected[i]) << " and received "
+                    << int(aov.m_received[i]) << std::endl;
+        }
+      }
+      fail = true;
+    }
+  }
 
-  std::cout << "Light expressions check OK" << std::endl;
-
+  if (!fail) {
+    std::cout << "Light expressions check OK" << std::endl;
+  }
   return 0;
 }
