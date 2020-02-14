@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch CMake target",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "cmake.launchTargetPath",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "cmake.buildDirectory",
+      "environment": [],
+      "externalConsole": true
+    }
+  ]
+}
