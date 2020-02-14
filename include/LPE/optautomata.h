@@ -30,10 +30,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
-namespace LPE {
+namespace LPE
+{
 
 class DfAutomata;
-
 
 /// Optimized compact version of DfAutomata
 ///
@@ -43,52 +43,51 @@ class DfAutomata;
 ///
 class DfOptimizedAutomata
 {
-    public:
+public:
+  void compileFrom(const DfAutomata &dfautomata);
 
-        void compileFrom(const DfAutomata &dfautomata);
+  int getTransition(int state, std::string symbol) const
+  {
+    const State &mystate = m_states[state];
+    const Transition *begin = &m_trans[mystate.begin_trans];
+    const Transition *end = begin + mystate.ntrans;
+    while (begin < end) { // binary search
+      const Transition *middle = begin + ((end - begin) >> 1);
+      if (symbol < middle->symbol)
+        end = middle;
+      else if (middle->symbol < symbol)
+        begin = middle + 1;
+      else // match
+        return middle->state;
+    }
+    return mystate.wildcard_trans;
+  }
 
-        int getTransition(int state, std::string symbol)const
-        {
-            const State &mystate = m_states[state];
-            const Transition *begin = &m_trans[mystate.begin_trans];
-            const Transition *end = begin + mystate.ntrans;
-            while (begin < end) { // binary search
-                const Transition *middle = begin + ((end - begin)>>1);
-                if (symbol < middle->symbol)
-                    end = middle;
-                else if (middle->symbol < symbol)
-                    begin = middle + 1;
-                else // match
-                    return middle->state;
-            }
-            return mystate.wildcard_trans;
-        }
+  void *const *getRules(int state, int &count) const
+  {
+    count = m_states[state].nrules;
+    return &m_rules[m_states[state].begin_rules];
+  }
 
-        void * const * getRules(int state, int &count)const
-        {
-            count = m_states[state].nrules;
-            return &m_rules[m_states[state].begin_rules];
-        }
-
-    protected:
-        struct State
-        {
-            unsigned int begin_trans;
-            unsigned int ntrans;
-            unsigned int begin_rules;
-            unsigned int nrules;
-            int wildcard_trans;
-        };
-        struct Transition
-        {
-            // we use this only for sorting
-            static bool trans_comp (const Transition &a, const Transition &b);
-            std::string symbol;
-            int      state;
-        };
-        std::vector<Transition> m_trans;
-        std::vector<void *>     m_rules;
-        std::vector<State>      m_states;
+protected:
+  struct State
+  {
+    unsigned int begin_trans;
+    unsigned int ntrans;
+    unsigned int begin_rules;
+    unsigned int nrules;
+    int wildcard_trans;
+  };
+  struct Transition
+  {
+    // we use this only for sorting
+    static bool trans_comp(const Transition &a, const Transition &b);
+    std::string symbol;
+    int state;
+  };
+  std::vector<Transition> m_trans;
+  std::vector<void *> m_rules;
+  std::vector<State> m_states;
 };
 
-}
+} // namespace LPE

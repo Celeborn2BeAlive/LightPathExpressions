@@ -26,6 +26,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/*
+ * Terminology:
+ * - DF Automata: Deterministic Finite Automata
+ * - NDF Automata: Non Deterministic Finite Automata
+ */
 #include <LPE/accum.h>
 #include <cassert>
 #include <iostream>
@@ -36,8 +41,8 @@ using namespace LPE;
 
 typedef struct
 {
-  const char *path[16];
-  int expected[8];
+  const char *path[16]; // Array of events of the path
+  int expected[8];      // What aovs are expected for this path
 } TestPath;
 
 // This is a fake AOV implementation. It will just keep track
