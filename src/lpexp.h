@@ -43,6 +43,8 @@ typedef std::pair<NdfAutomata::State *, NdfAutomata::State *> FirstLast;
 /// LPexp atom type for the getType method
 typedef enum { CAT, OR, SYMBOL, WILDCARD, REPEAT, NREPEAT } Regtype;
 
+class LPexpVisitor;
+
 /// Base class for a light path expression
 //
 /// Light path expressions are arranged as an abstract syntax tree. All the
@@ -77,6 +79,8 @@ public:
   /// as aa*. So the amount of regexp classes gets reduced. For doing that
   /// it needs an abstract clone function
   virtual LPexp *clone() const = 0;
+
+  virtual void accept(LPexpVisitor &visitor) const = 0;
 };
 
 /// LPexp concatenation
@@ -86,10 +90,14 @@ public:
   virtual ~Cat();
   void append(LPexp *regexp);
   virtual FirstLast genAuto(NdfAutomata &automata) const;
-  virtual Regtype getType() const { return CAT; };
+  virtual Regtype getType() const
+  {
+    return CAT;
+  };
   virtual LPexp *clone() const;
 
-protected:
+  void accept(LPexpVisitor &) const override;
+
   std::list<LPexp *> m_children;
 };
 
@@ -97,14 +105,24 @@ protected:
 class Symbol : public LPexp
 {
 public:
-  Symbol(std::string sym) { m_sym = sym; };
+  Symbol(std::string sym)
+  {
+    m_sym = sym;
+  };
   virtual ~Symbol(){};
 
   virtual FirstLast genAuto(NdfAutomata &automata) const;
-  virtual Regtype getType() const { return SYMBOL; };
-  virtual LPexp *clone() const { return new Symbol(*this); };
+  virtual Regtype getType() const
+  {
+    return SYMBOL;
+  };
+  virtual LPexp *clone() const
+  {
+    return new Symbol(*this);
+  };
 
-protected:
+  void accept(LPexpVisitor &) const override;
+
   // All symbols are unique std::strings
   std::string m_sym;
 };
@@ -119,10 +137,17 @@ public:
   virtual ~Wildexp(){};
 
   virtual FirstLast genAuto(NdfAutomata &automata) const;
-  virtual Regtype getType() const { return WILDCARD; };
-  virtual LPexp *clone() const { return new Wildexp(*this); };
+  virtual Regtype getType() const
+  {
+    return WILDCARD;
+  };
+  virtual LPexp *clone() const
+  {
+    return new Wildexp(*this);
+  };
 
-protected:
+  void accept(LPexpVisitor &) const override;
+
   // And internally we use the automata's Wildcard type
   Wildcard m_wildcard;
 };
@@ -134,10 +159,14 @@ public:
   virtual ~Orlist();
   void append(LPexp *regexp);
   virtual FirstLast genAuto(NdfAutomata &automata) const;
-  virtual Regtype getType() const { return OR; };
+  virtual Regtype getType() const
+  {
+    return OR;
+  };
   virtual LPexp *clone() const;
 
-protected:
+  void accept(LPexpVisitor &) const override;
+
   std::list<LPexp *> m_children;
 };
 
@@ -146,12 +175,22 @@ class Repeat : public LPexp
 {
 public:
   Repeat(LPexp *child) : m_child(child){};
-  virtual ~Repeat() { delete m_child; };
+  virtual ~Repeat()
+  {
+    delete m_child;
+  };
   virtual FirstLast genAuto(NdfAutomata &automata) const;
-  virtual Regtype getType() const { return REPEAT; };
-  virtual LPexp *clone() const { return new Repeat(m_child->clone()); };
+  virtual Regtype getType() const
+  {
+    return REPEAT;
+  };
+  virtual LPexp *clone() const
+  {
+    return new Repeat(m_child->clone());
+  };
 
-protected:
+  void accept(LPexpVisitor &) const override;
+
   LPexp *m_child;
 };
 
@@ -163,17 +202,104 @@ public:
       m_child(child),
       m_min(min),
       m_max(max){};
-  virtual ~NRepeat() { delete m_child; };
+  virtual ~NRepeat()
+  {
+    delete m_child;
+  };
   virtual FirstLast genAuto(NdfAutomata &automata) const;
-  virtual Regtype getType() const { return NREPEAT; };
+  virtual Regtype getType() const
+  {
+    return NREPEAT;
+  };
   virtual LPexp *clone() const
   {
     return new NRepeat(m_child->clone(), m_min, m_max);
   };
 
-protected:
+  void accept(LPexpVisitor &) const override;
+
   LPexp *m_child;
   int m_min, m_max;
+};
+
+class LPexpVisitor
+{
+public:
+  virtual ~LPexpVisitor(){};
+
+  virtual bool enter(const LPexp &exp)
+  {
+    enter(static_cast<const LPexp &>(exp));
+    return true;
+  };
+
+  virtual bool enter(const Cat &exp)
+  {
+    enter(static_cast<const LPexp &>(exp));
+    return true;
+  };
+
+  virtual bool enter(const Symbol &exp)
+  {
+    enter(static_cast<const LPexp &>(exp));
+    return true;
+  };
+
+  virtual bool enter(const Wildexp &exp)
+  {
+    enter(static_cast<const LPexp &>(exp));
+    return true;
+  };
+
+  virtual bool enter(const Orlist &exp)
+  {
+    enter(static_cast<const LPexp &>(exp));
+    return true;
+  };
+
+  virtual bool enter(const Repeat &exp)
+  {
+    enter(static_cast<const LPexp &>(exp));
+    return true;
+  };
+
+  virtual bool enter(const NRepeat &exp)
+  {
+    enter(static_cast<const LPexp &>(exp));
+    return true;
+  };
+
+  virtual void leave(const LPexp &exp){};
+
+  virtual void leave(const Cat &exp)
+  {
+    leave(static_cast<const LPexp &>(exp));
+  };
+
+  virtual void leave(const Symbol &exp)
+  {
+    leave(static_cast<const LPexp &>(exp));
+  };
+
+  virtual void leave(const Wildexp &exp)
+  {
+    leave(static_cast<const LPexp &>(exp));
+  };
+
+  virtual void leave(const Orlist &exp)
+  {
+    leave(static_cast<const LPexp &>(exp));
+  };
+
+  virtual void leave(const Repeat &exp)
+  {
+    leave(static_cast<const LPexp &>(exp));
+  };
+
+  virtual void leave(const NRepeat &exp)
+  {
+    leave(static_cast<const LPexp &>(exp));
+  };
 };
 
 /// Toplevel rule definition
@@ -186,7 +312,10 @@ class Rule
 {
 public:
   Rule(LPexp *child, void *rule) : m_child(child), m_rule(rule){};
-  virtual ~Rule() { delete m_child; };
+  virtual ~Rule()
+  {
+    delete m_child;
+  };
   void genAuto(NdfAutomata &automata) const;
 
 protected:

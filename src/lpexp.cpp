@@ -31,7 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace LPE
 {
 
-lpexp::FirstLast lpexp::Cat::genAuto(NdfAutomata &automata) const
+using namespace lpexp;
+
+FirstLast Cat::genAuto(NdfAutomata &automata) const
 {
   NdfAutomata::State *first = NULL;
   NdfAutomata::State *last = NULL;
@@ -51,15 +53,18 @@ lpexp::FirstLast lpexp::Cat::genAuto(NdfAutomata &automata) const
   return FirstLast(first, last);
 }
 
-void lpexp::Cat::append(LPexp *lpexp) { m_children.push_back(lpexp); }
+void Cat::append(LPexp *lpexp)
+{
+  m_children.push_back(lpexp);
+}
 
-lpexp::Cat::~Cat()
+Cat::~Cat()
 {
   for (auto &child : m_children)
     delete child;
 }
 
-lpexp::LPexp *lpexp::Cat::clone() const
+LPexp *Cat::clone() const
 {
   Cat *newcat = new Cat();
   for (auto child : m_children)
@@ -67,7 +72,19 @@ lpexp::LPexp *lpexp::Cat::clone() const
   return newcat;
 }
 
-lpexp::FirstLast lpexp::Symbol::genAuto(NdfAutomata &automata) const
+void Cat::accept(LPexpVisitor &visitor) const
+{
+  if (visitor.enter(*this)) {
+    for (auto &child : m_children) {
+      if (child) {
+        child->accept(visitor);
+      }
+    }
+    visitor.leave(*this);
+  }
+}
+
+FirstLast Symbol::genAuto(NdfAutomata &automata) const
 {
   // Easiest lpexp ever. Two new states, than join the first to
   // the second with the symbol we got
@@ -77,7 +94,14 @@ lpexp::FirstLast lpexp::Symbol::genAuto(NdfAutomata &automata) const
   return FirstLast(begin, end);
 }
 
-lpexp::FirstLast lpexp::Wildexp::genAuto(NdfAutomata &automata) const
+void Symbol::accept(LPexpVisitor &visitor) const
+{
+  if (visitor.enter(*this)) {
+    visitor.leave(*this);
+  }
+}
+
+FirstLast Wildexp::genAuto(NdfAutomata &automata) const
 {
   // Same as the Symbol lpexp but with a wildcard insted of a symbol
   NdfAutomata::State *begin = automata.newState();
@@ -86,7 +110,14 @@ lpexp::FirstLast lpexp::Wildexp::genAuto(NdfAutomata &automata) const
   return FirstLast(begin, end);
 }
 
-lpexp::FirstLast lpexp::Orlist::genAuto(NdfAutomata &automata) const
+void Wildexp::accept(LPexpVisitor &visitor) const
+{
+  if (visitor.enter(*this)) {
+    visitor.leave(*this);
+  }
+}
+
+FirstLast Orlist::genAuto(NdfAutomata &automata) const
 {
   // Cat was like a serial circuit and this is a parallel one. We need
   // two new states begin and end
@@ -102,15 +133,30 @@ lpexp::FirstLast lpexp::Orlist::genAuto(NdfAutomata &automata) const
   return FirstLast(begin, end);
 }
 
-void lpexp::Orlist::append(LPexp *lpexp) { m_children.push_back(lpexp); }
+void Orlist::append(LPexp *lpexp)
+{
+  m_children.push_back(lpexp);
+}
 
-lpexp::Orlist::~Orlist()
+void Orlist::accept(LPexpVisitor &visitor) const
+{
+  if (visitor.enter(*this)) {
+    for (auto &child : m_children) {
+      if (child) {
+        child->accept(visitor);
+      }
+    }
+    visitor.leave(*this);
+  }
+}
+
+Orlist::~Orlist()
 {
   for (auto &child : m_children)
     delete child;
 }
 
-lpexp::LPexp *lpexp::Orlist::clone() const
+LPexp *Orlist::clone() const
 {
   Orlist *newor = new Orlist();
   for (auto child : m_children)
@@ -118,7 +164,7 @@ lpexp::LPexp *lpexp::Orlist::clone() const
   return newor;
 }
 
-lpexp::FirstLast lpexp::Repeat::genAuto(NdfAutomata &automata) const
+FirstLast Repeat::genAuto(NdfAutomata &automata) const
 {
   NdfAutomata::State *begin = automata.newState();
   NdfAutomata::State *end = automata.newState();
@@ -132,7 +178,17 @@ lpexp::FirstLast lpexp::Repeat::genAuto(NdfAutomata &automata) const
   return FirstLast(begin, end);
 }
 
-lpexp::FirstLast lpexp::NRepeat::genAuto(NdfAutomata &automata) const
+void Repeat::accept(LPexpVisitor &visitor) const
+{
+  if (visitor.enter(*this)) {
+    if (m_child) {
+      m_child->accept(visitor);
+    }
+    visitor.leave(*this);
+  }
+}
+
+FirstLast NRepeat::genAuto(NdfAutomata &automata) const
 {
   NdfAutomata::State *first = NULL;
   NdfAutomata::State *last = NULL;
@@ -161,7 +217,17 @@ lpexp::FirstLast lpexp::NRepeat::genAuto(NdfAutomata &automata) const
   return FirstLast(first, last);
 }
 
-void lpexp::Rule::genAuto(NdfAutomata &automata) const
+void NRepeat::accept(LPexpVisitor &visitor) const
+{
+  if (visitor.enter(*this)) {
+    if (m_child) {
+      m_child->accept(visitor);
+    }
+    visitor.leave(*this);
+  }
+}
+
+void Rule::genAuto(NdfAutomata &automata) const
 {
   // First generate the actual automata
   FirstLast fl = m_child->genAuto(automata);

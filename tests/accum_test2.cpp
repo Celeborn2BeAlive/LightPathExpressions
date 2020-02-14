@@ -31,9 +31,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * - DF Automata: Deterministic Finite Automata
  * - NDF Automata: Non Deterministic Finite Automata
  */
+#include "lpeparse.h"
+#include "lpexp.h"
 #include <LPE/accum.h>
+
 #include <cassert>
+#include <fstream>
 #include <iostream>
+#include <stack>
+
+#include "json.hpp"
 
 using namespace LPE;
 
@@ -152,6 +159,8 @@ enum {
   reflections,
   nocaustic,
   custom,
+  my_light,
+  my_cam,
   naovs
 };
 
@@ -174,10 +183,69 @@ const AovDesc aovDescs[] =
   {"transpshadow",  "CD+<Ts>L"},
   {"reflections",   "C<R[^D]>+D*L"},
   {"nocaustic",     "C([SG]*D){1,2}L"},
-  {"custom",        "CDY+U"}
+  {"custom",        "CDY+U"},
+  {"my_light",      "C[SG]*D*<L.'my_light'>"},
+  {"my_cam",        "<'my_cam'.>.*"}
 };
 
 // clang-format on
+
+using json = nlohmann::json;
+
+struct JsonSerializerVisitor : public lpexp::LPexpVisitor
+{
+  json root;
+  std::stack<json> parent;
+
+  bool enter(const lpexp::Cat &exp) override
+  {
+    parent.emplace(json{{"type", "Cat"}, {"children", json::array()}});
+    return true;
+  }
+
+  bool enter(const lpexp::Symbol &exp) override
+  {
+    parent.emplace(json{{"type", "Symbol"}, {"value", exp.m_sym}});
+    return true;
+  }
+
+  bool enter(const lpexp::Wildexp &exp) override
+  {
+    const auto &wildcard = exp.m_wildcard;
+    parent.emplace(json{{"type", "Wildexp"}, {"minus", wildcard.m_minus}});
+    return true;
+  }
+
+  bool enter(const lpexp::Orlist &exp) override
+  {
+    parent.emplace(json{{"type", "Or"}, {"children", json::array()}});
+    return true;
+  }
+
+  bool enter(const lpexp::Repeat &exp) override
+  {
+    parent.emplace(json{{"type", "Repeat"}, {"children", json::array()}});
+    return true;
+  }
+
+  bool enter(const lpexp::NRepeat &exp) override
+  {
+    parent.emplace(json{{"type", "NRepeat"}, {"min", exp.m_min},
+        {"max", exp.m_max}, {"children", json::array()}});
+    return true;
+  }
+
+  void leave(const lpexp::LPexp &exp)
+  {
+    const auto object = parent.top();
+    parent.pop();
+    if (!parent.empty()) {
+      parent.top()["children"].emplace_back(object);
+    } else {
+      root = object;
+    }
+  }
+};
 
 int main()
 {
@@ -227,8 +295,16 @@ int main()
   TestPath test13{
       {{"C", "_"}, {"R", "D"}, {"R", "Y"}, {"T", "Y"}, {"U", "_"}}, {custom}};
 
+  TestPath test14{
+      {{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"L", "_", "my_light"}},
+      {beauty, specular, my_light, nocaustic}};
+
+  TestPath test15{{{"my_cam", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"},
+                      {"L", "_", "my_light"}},
+      {my_cam}};
+
   std::vector<TestPath> test = {test1, test2, test3, test4, test5, test6, test7,
-      test8, test9, test10, test11, test12, test13};
+      test8, test9, test10, test11, test12, test13, test14, test15};
 
   // Create our fake testing AOV's
   std::vector<MyAov> aovs;
@@ -238,11 +314,40 @@ int main()
   // Create the automata and add the rules
   AccumAutomata automata;
 
-  automata.addEventType(std::string("U"));
-  automata.addScatteringType(std::string("Y"));
+  std::vector<std::string> userEvents = {"U"};
+  std::vector<std::string> userScatterings = {"Y"};
+
+  for (const auto &s : userEvents) {
+    automata.addEventType(s);
+  }
+  for (const auto &s : userScatterings) {
+    automata.addScatteringType(s);
+  }
+
+  json lpexpJson;
 
   for (size_t i = 0; i < aovs.size(); ++i) {
-    assert(automata.addRule(aovDescs[i].lpe, int(i)));
+    if (!automata.addRule(aovDescs[i].lpe, int(i))) {
+      std::cerr << "addRule failed for lpe " << aovDescs[i].name << std::endl;
+    }
+
+    Parser parser(&userEvents, &userScatterings);
+    LPexp *e = parser.parse(aovDescs[i].lpe);
+
+    JsonSerializerVisitor v;
+    e->accept(v);
+    delete e;
+
+    json object;
+    object["name"] = aovDescs[i].name;
+    object["lpe"] = aovDescs[i].lpe;
+    object["tree"] = v.root;
+    lpexpJson[aovDescs[i].name] = object;
+  }
+
+  {
+    std::ofstream jsonOut("lpe.json");
+    jsonOut << lpexpJson.dump(2);
   }
 
   automata.compile();
@@ -272,6 +377,8 @@ int main()
         }
       }
       fail = true;
+    } else {
+      std::cout << "Aov " << aov.name << " OK " << std::endl;
     }
   }
 
