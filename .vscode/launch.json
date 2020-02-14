@@ -5,12 +5,12 @@
       "name": "Launch CMake target",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "cmake.launchTargetPath",
+      "program": "${command:cmake.launchTargetPath}",
       "args": [],
       "stopAtEntry": false,
-      "cwd": "cmake.buildDirectory",
+      "cwd": "${config:cmake.buildDirectory}",
       "environment": [],
-      "externalConsole": true
+      "externalConsole": false
     }
   ]
 }
