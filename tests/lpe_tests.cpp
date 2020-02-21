@@ -343,12 +343,12 @@ int main()
     }
 
     if (state >= 0) {
-      int nrules = 0;
-      void *const *rules = dfoptautomata.getRules(state, nrules);
+      unsigned int nrules = 0;
+      unsigned int const *const rules = dfoptautomata.getRules(state, nrules);
       // Iterate the vector
-      for (int k = 0; k < nrules; ++k) {
+      for (auto k = 0u; k < nrules; ++k) {
         // This is where we should accumulate the color sample
-        const auto outputIdx = (int)(rules[k]) - 1;
+        const auto outputIdx = rules[k] - 1;
         aovs[outputIdx].received[pathIdx] = true;
       }
     }

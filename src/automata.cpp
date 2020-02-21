@@ -632,12 +632,12 @@ void DfOptimizedAutomata::compileFrom(const DfAutomata &dfautomata)
     totalrules += dfautomata.m_states[s]->m_rules.size();
   }
   m_trans.resize(totaltrans);
-  m_rules.resize(totalrules);
+  m_lpes.resize(totalrules);
   size_t trans_offset = 0;
   size_t rules_offset = 0;
   for (size_t s = 0; s < m_states.size(); ++s) {
     m_states[s].begin_trans = trans_offset;
-    m_states[s].begin_rules = rules_offset;
+    m_states[s].begin_lpes = rules_offset;
     for (SymbolToInt::const_iterator i =
              dfautomata.m_states[s]->m_symbol_trans.begin();
          i != dfautomata.m_states[s]->m_symbol_trans.end();
@@ -647,9 +647,9 @@ void DfOptimizedAutomata::compileFrom(const DfAutomata &dfautomata)
     }
     for (RuleSet::const_iterator i = dfautomata.m_states[s]->m_rules.begin();
          i != dfautomata.m_states[s]->m_rules.end(); ++i, ++rules_offset)
-      m_rules[rules_offset] = *i;
+      m_lpes[rules_offset] = *i;
     m_states[s].ntrans = dfautomata.m_states[s]->m_symbol_trans.size();
-    m_states[s].nrules = dfautomata.m_states[s]->m_rules.size();
+    m_states[s].nlpes = dfautomata.m_states[s]->m_rules.size();
     std::sort(m_trans.begin() + m_states[s].begin_trans,
         m_trans.begin() + m_states[s].begin_trans + m_states[s].ntrans,
         DfOptimizedAutomata::Transition::trans_comp);

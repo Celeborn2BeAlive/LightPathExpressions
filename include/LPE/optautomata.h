@@ -31,7 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <vector>
 
-
 namespace LPE
 {
 
@@ -85,10 +84,10 @@ public:
     return mystate.wildcard_trans;
   }
 
-  void *const *getRules(int state, int &count) const
+  unsigned int const *getRules(int state, unsigned int &count) const
   {
-    count = m_states[state].nrules;
-    return &m_rules[m_states[state].begin_rules];
+    count = m_states[state].nlpes;
+    return &m_lpes[m_states[state].begin_lpes];
   }
 
 protected:
@@ -96,8 +95,8 @@ protected:
   {
     unsigned int begin_trans;
     unsigned int ntrans;
-    unsigned int begin_rules;
-    unsigned int nrules;
+    unsigned int begin_lpes;
+    unsigned int nlpes;
     int wildcard_trans;
   };
   struct Transition
@@ -108,7 +107,7 @@ protected:
     int state;
   };
   std::vector<Transition> m_trans;
-  std::vector<void *> m_rules;
+  std::vector<unsigned int> m_lpes;
   std::vector<State> m_states;
 };
 

@@ -56,7 +56,7 @@ typedef std::unordered_map<int, int> HashIntInt;
 // For the rules in the deterministic states, we don't need a real set
 // cause when converting from the NDF automata we will never find the same
 // rule twice
-typedef std::vector<void *> RuleSet;
+typedef std::vector<unsigned int> RuleSet;
 
 // The lambda symbol (empty word)
 extern std::string lambda;
@@ -101,7 +101,10 @@ public:
       m_wildcard = NULL;
       m_rule = NULL;
     };
-    ~State() { delete m_wildcard; };
+    ~State()
+    {
+      delete m_wildcard;
+    };
 
     /// Get the set of state id's reachable by the given symbol
     ///
@@ -126,10 +129,19 @@ public:
 
     /// For final states, this sets the associated rule. Which
     /// can be any kind of pointer
-    void setRule(void *rule) { m_rule = rule; };
+    void setRule(unsigned int rule)
+    {
+      m_rule = rule;
+    };
 
-    void *getRule() const { return m_rule; };
-    int getId() const { return m_id; };
+    unsigned int getRule() const
+    {
+      return m_rule;
+    };
+    int getId() const
+    {
+      return m_id;
+    };
 
     /// For debuging purposes
     std::string tostr() const;
@@ -144,21 +156,36 @@ public:
     int m_wildcard_trans;
     // Wildcard (NULL if no wildcard transition present)
     Wildcard *m_wildcard;
-    // Associated rule for final states, NULL if not final
-    void *m_rule;
+    // Associated rule for final states, (unsigned int) -1 if not final
+    unsigned int m_rule;
   };
 
-  NdfAutomata() { newState(); };
+  NdfAutomata()
+  {
+    newState();
+  };
   ~NdfAutomata();
 
-  const State *getInitial() const { return m_states[0]; };
-  State *getInitial() { return m_states[0]; };
+  const State *getInitial() const
+  {
+    return m_states[0];
+  };
+  State *getInitial()
+  {
+    return m_states[0];
+  };
 
   /// Creates a new state qith a valid id
   State *newState();
 
-  const State *getState(int i) const { return m_states[i]; };
-  size_t size() const { return m_states.size(); };
+  const State *getState(int i) const
+  {
+    return m_states[i];
+  };
+  size_t size() const
+  {
+    return m_states.size();
+  };
 
   /// return all the symbols that lead to other states starting
   /// in any of the states in the given set. Also if there are
@@ -243,9 +270,18 @@ public:
     /// the single symbol transitions. This function performs that optimization
     void removeUselessTransitions();
 
-    void addRule(void *rule) { m_rules.push_back(rule); };
-    const RuleSet &getRules() const { return m_rules; };
-    int getId() const { return m_id; };
+    void addRule(unsigned int rule)
+    {
+      m_rules.push_back(rule);
+    };
+    const RuleSet &getRules() const
+    {
+      return m_rules;
+    };
+    int getId() const
+    {
+      return m_id;
+    };
     std::string tostr() const;
 
   protected:
@@ -263,8 +299,14 @@ public:
   ~DfAutomata();
 
   State *newState();
-  const State *getState(int i) const { return m_states[i]; };
-  size_t size() const { return m_states.size(); };
+  const State *getState(int i) const
+  {
+    return m_states[i];
+  };
+  size_t size() const
+  {
+    return m_states.size();
+  };
   // In case somebody wants to reuse the same object and recreate
   // an automata, we provide this method
   void clear();
