@@ -302,28 +302,9 @@ public:
   };
 };
 
-/// Toplevel rule definition
-///
-/// Note that although it has almost the same interface, this is not
-/// a LPexp. It actually binds a light path expression to a certain rule.
-/// Making the begin state initial and the end state final. It can't be
-/// nested in other light path expressions, it is the root of the tree.
-class Rule
-{
-public:
-  Rule(LPexp *child, void *rule) : m_child(child), m_rule(rule){};
-  virtual ~Rule()
-  {
-    delete m_child;
-  };
-  void genAuto(NdfAutomata &automata) const;
-
-protected:
-  LPexp *m_child;
-  // Anonymous pointer to the associated object for this rule
-  void *m_rule;
-};
-
 } // namespace lpexp
+
+void generateAutomata(
+    NdfAutomata &automata, const lpexp::LPexp &lpe, size_t lpeId);
 
 } // namespace LPE

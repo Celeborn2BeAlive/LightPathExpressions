@@ -21,9 +21,6 @@ set(SRC_FILES
 add_library(LPE STATIC ${SRC_FILES})
 target_include_directories(LPE PUBLIC include)
 
-add_executable(accum_test tests/accum_test.cpp)
-target_link_libraries(accum_test LPE)
-
 add_executable(accum_test2 tests/accum_test2.cpp)
 target_link_libraries(accum_test2 LPE)
 target_include_directories(accum_test2 PUBLIC src)

@@ -275,13 +275,13 @@ int main()
   std::vector<std::string> userEvents = {"U"};
   std::vector<std::string> userScatterings = {"Y"};
 
-  std::list<lpexp::Rule *> rules;
+  std::vector<LPexp *> lpeAsts(aovs.size());
 
   json lpexpJson;
 
   for (size_t i = 0; i < aovs.size(); ++i) {
     Parser parser(&userEvents, &userScatterings);
-    LPexp *e = parser.parse(aovDescs[i].lpe);
+    lpeAsts[i] = parser.parse(aovDescs[i].lpe);
 
     if (parser.error()) {
       std::cerr << "[pathexp] Parse error" << parser.getErrorMsg()
@@ -290,9 +290,7 @@ int main()
     }
 
     JsonSerializerVisitor v;
-    e->accept(v);
-
-    rules.push_back(new lpexp::Rule(e, (void *)(i + 1)));
+    lpeAsts[i]->accept(v);
 
     json object;
     object["name"] = aovDescs[i].name;
@@ -307,9 +305,8 @@ int main()
   }
 
   NdfAutomata ndfautomata;
-  for (std::list<lpexp::Rule *>::const_iterator i = rules.begin();
-       i != rules.end(); ++i) {
-    (*i)->genAuto(ndfautomata);
+  for (size_t i = 0; i < lpeAsts.size(); ++i) {
+    generateAutomata(ndfautomata, *lpeAsts[i], i + 1);
   }
   DfAutomata dfautomata;
   ndfautoToDfauto(ndfautomata, dfautomata);

@@ -27,7 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "lpeparse.h"
-#include "LPE/accum.h"
+#include "LPE/optautomata.h"
 #include <cassert>
 #include <iostream>
 

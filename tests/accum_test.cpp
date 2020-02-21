@@ -26,6 +26,8 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#if 0
+
 #include <LPE/accum.h>
 #include <cassert>
 #include <iostream>
@@ -199,3 +201,5 @@ int main()
 
   return 0;
 }
+
+#endif

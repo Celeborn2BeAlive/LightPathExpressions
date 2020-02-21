@@ -35,6 +35,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace LPE
 {
 
+// Taken from oslclosure.h/.cpp in OSL source code
+
+const std::string Labels::NONE =
+    "__none__"; // #warning in OSL source code it was set to NULL because they
+                // use ustring
+// Event type
+const std::string Labels::CAMERA = "C";
+const std::string Labels::LIGHT = "L";
+const std::string Labels::BACKGROUND = "B";
+const std::string Labels::TRANSMIT = "T";
+const std::string Labels::REFLECT = "R";
+const std::string Labels::VOLUME = "V";
+const std::string Labels::OBJECT = "O";
+// Scattering
+const std::string Labels::DIFFUSE = "D"; // typical 2PI hemisphere
+const std::string Labels::GLOSSY = "G";  // blurry reflections and transmissions
+const std::string Labels::SINGULAR = "S"; // perfect mirrors and glass
+const std::string Labels::STRAIGHT =
+    "s"; // Special case for transparent shadows
+
+const std::string Labels::STOP = "__stop__"; // end of a surface description
+
+// end Taken from oslclosure.h/.cpp in OSL source code
+
 #ifdef _MSC_VER
 #define snprintf sprintf_s
 #endif
@@ -501,7 +525,10 @@ void DfAutomata::clear()
   m_states.clear();
 }
 
-DfAutomata::~DfAutomata() { clear(); }
+DfAutomata::~DfAutomata()
+{
+  clear();
+}
 
 DfAutomata::State *StateSetRecord::ensureState(
     const IntSet &newstates, std::list<StateSetRecord::Discovery> &discovered)
