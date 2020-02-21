@@ -122,31 +122,6 @@ public:
   }
 };
 
-// Simulate the tracing of a path with the accumulator
-void simulate(
-    Accumulator &accum, const std::vector<RayEvent> &events, int testno)
-{
-  accum.begin();
-  accum.pushState();
-
-  for (const auto &e : events) {
-    accum.move(e.eventType);
-    if (e.scatteringType) {
-      accum.move(e.scatteringType);
-    }
-    if (e.object) {
-      accum.move(e.object);
-    }
-    accum.move(Labels::STOP);
-  }
-
-  // Here is were we have reached a light, accumulate color
-  accum.accum(Color3(1, 1, 1));
-  // Restore state and flush
-  accum.popState();
-  accum.end((void *)(long int)testno);
-}
-
 // Some constants to avoid refering to AOV's by number
 enum {
   beauty,
@@ -352,16 +327,56 @@ int main()
 
   automata.compile();
 
-  // now create the accumulator
-  Accumulator accum(&automata);
+  const std::list<AccumRule> &rules = automata.getRuleList();
+
+  std::vector<AovOutput> outputs(naovs);
 
   // and set the AOV's for each id (beauty, diffuse2_3, etc ...)
-  for (int i = 0; i < naovs; ++i)
-    accum.setAov(i, &aovs[i], false, false);
+  for (int i = 0; i < naovs; ++i) {
+    outputs[i].aov = &aovs[i];
+    outputs[i].neg_color = false;
+    outputs[i].neg_alpha = false;
+  }
 
   // do the simulation for each test case
-  for (size_t i = 0; i < test.size(); ++i)
-    simulate(accum, test[i].events, i);
+  for (size_t i = 0; i < test.size(); ++i) {
+    for (size_t j = 0; j < outputs.size(); ++j)
+      outputs[j].reset();
+
+    auto state = 0;
+
+    for (const auto &e : test[i].events) {
+      state = automata.getTransition(state, e.eventType);
+
+      if (state < 0) {
+        break;
+      }
+      if (e.scatteringType) {
+        state = automata.getTransition(state, e.scatteringType);
+        if (state < 0) {
+          break;
+        }
+      }
+      if (e.object) {
+        state = automata.getTransition(state, e.object);
+        if (state < 0) {
+          break;
+        }
+      }
+      state = automata.getTransition(state, Labels::STOP);
+      if (state < 0) {
+        break;
+      }
+    }
+
+    if (state >= 0) {
+      automata.accum(state, Color3(1, 1, 1), outputs);
+    }
+
+    for (size_t j = 0; j < outputs.size(); ++j) {
+      outputs[j].flush((void *)(long int)i);
+    }
+  }
 
   // And check. We unroll this loop for boost to give us a useful
   // error in case they fail

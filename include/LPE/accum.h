@@ -62,7 +62,9 @@ struct Color3
 
   Color3() = default;
 
-  Color3(float x, float y, float z) : x{x}, y{y}, z{z} {}
+  Color3(float x, float y, float z) : x{x}, y{y}, z{z}
+  {
+  }
 
   void setValue(float _r, float _g, float _b)
   {
@@ -96,20 +98,18 @@ public:
 /// integration ray walk for a pixel and flushed at the end
 struct AovOutput
 {
-  AovOutput() : neg_color(false), neg_alpha(false), aov(NULL){};
-
   // Accumulated values
-  Color3 color;
-  float alpha;
+  Color3 color = Color3(0, 0, 0);
+  float alpha = 0.f;
   // whether there has been some value added to color
-  bool has_color;
+  bool has_color = false;
   // whether there has been some value added to alpha
-  bool has_alpha;
+  bool has_alpha = false;
   // It is also possible to "invert" values before flushing
-  bool neg_color;
-  bool neg_alpha;
+  bool neg_color = false;
+  bool neg_alpha = false;
   // The abstract AOV to send the data to
-  Aov *aov;
+  Aov *aov = nullptr;
 
   // Reset the accumulated value to start a new integration
   void reset()
@@ -152,8 +152,14 @@ public:
   // This link information is actually not used inside of this class for other
   // thing than to keep track of who links who and in what way. Everything is
   // used at the end from AovOutput
-  bool toAlpha() const { return m_save_to_alpha; };
-  int getOutputIndex() const { return m_outidx; };
+  bool toAlpha() const
+  {
+    return m_save_to_alpha;
+  };
+  int getOutputIndex() const
+  {
+    return m_outidx;
+  };
 
 private:
   int m_outidx;
@@ -176,7 +182,10 @@ public:
   ~AccumAutomata();
 
   /// Support the given symbol as event tag on lpe expressions
-  void addEventType(std::string symbol) { m_user_events.push_back(symbol); };
+  void addEventType(std::string symbol)
+  {
+    m_user_events.push_back(symbol);
+  };
   /// Support the given symbol as scattering tag on lpe expressions
   void addScatteringType(std::string symbol)
   {
@@ -209,7 +218,10 @@ public:
 
   /// The rule list is for public use in read-only, so Accumulator knows what
   /// AOVS are we using
-  const std::list<AccumRule> &getRuleList() const { return m_accumrules; };
+  const std::list<AccumRule> &getRuleList() const
+  {
+    return m_accumrules;
+  };
 
   /// Get the rules for a given state
   void *const *getRulesInState(int state, int &count) const
@@ -245,7 +257,10 @@ public:
   void setAov(int outidx, Aov *aov, bool neg_color, bool neg_alpha);
 
   /// If the machine is broken no result will be stored, you can cut the branch
-  bool broken() const { return m_state < 0; }
+  bool broken() const
+  {
+    return m_state < 0;
+  }
 
   void pushState();
   void popState();
@@ -287,7 +302,10 @@ public:
       m_accum_automata->accum(m_state, color, m_outputs);
   };
 
-  const AovOutput &getOutput(int idx) const { return m_outputs[idx]; };
+  const AovOutput &getOutput(int idx) const
+  {
+    return m_outputs[idx];
+  };
 
 private:
   // A reference to the stateless automata that can be shared between multiple
