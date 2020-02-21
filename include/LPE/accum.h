@@ -36,26 +36,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace LPE
 {
 
-struct Labels
-{
-  static const std::string NONE;
-  // Event type
-  static const std::string CAMERA;
-  static const std::string LIGHT;
-  static const std::string BACKGROUND;
-  static const std::string TRANSMIT;
-  static const std::string REFLECT;
-  static const std::string VOLUME;
-  static const std::string OBJECT;
-  // Scattering
-  static const std::string DIFFUSE;  // typical 2PI hemisphere
-  static const std::string GLOSSY;   // blurry reflections and transmissions
-  static const std::string SINGULAR; // perfect mirrors and glass
-  static const std::string STRAIGHT; // Special case for transparent shadows
-
-  static const std::string STOP; // end of a surface description
-};
-
 struct Color3
 {
   float x, y, z;
@@ -161,7 +141,6 @@ public:
     return m_outidx;
   };
 
-private:
   int m_outidx;
   bool m_save_to_alpha;
 };

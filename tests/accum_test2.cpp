@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "lpeparse.h"
 #include "lpexp.h"
-#include <LPE/accum.h>
+#include <LPE/optautomata.h>
 
 #include <cassert>
 #include <fstream>
@@ -46,6 +46,7 @@ using namespace LPE;
 
 struct RayEvent
 {
+  // This are strings
   const char *eventType;
   const char *scatteringType;
   const char *object;
@@ -61,64 +62,48 @@ struct RayEvent
 struct TestPath
 {
   std::vector<RayEvent> events; // Array of events of the path
-  std::vector<int> expected;    // What aovs are expected for this path
+  std::vector<size_t>
+      expectedLPEs; // Indices of LPEs that are expected to match this path
 
-  TestPath(std::vector<RayEvent> e, std::vector<int> ex) :
+  TestPath(std::vector<RayEvent> e, std::vector<size_t> ex) :
       events{std::move(e)},
-      expected{std::move(ex)}
+      expectedLPEs{std::move(ex)}
   {
   }
 };
 
-// This is a fake AOV implementation. It will just keep track
-// of what test cases wrote to it
-class MyAov : public Aov
+class LpeAov
 {
 public:
   std::string name;
 
-  std::vector<bool> m_expected;
-  std::vector<bool> m_received;
+  // For each path, we have a boolean telling us if it is expected to be
+  // recognized by the LPE of this AOV
+  std::vector<bool> expected;
 
-  MyAov(const std::vector<TestPath> &tests, int id, std::string name) :
-      name{std::move(name)}
+  // Will be filled during "path tracing"
+  std::vector<bool> received;
+
+  LpeAov(int aovIdx, std::string aovName, const std::vector<TestPath> &paths) :
+      name{std::move(aovName)},
+      expected(paths.size(), false),
+      received(paths.size(), false)
   {
-    // Init for the test case array. For each test case set a bool
-    // in m_expected marking wether this AOV should get soem color
-    // from that test or not.
-    for (size_t i = 0; i < tests.size(); ++i) {
-      const auto &test = tests[i];
-      m_expected.push_back(false);
-      for (const auto expected : test.expected) {
-        if (expected == id) {
-          m_expected[i] = true;
+    for (size_t i = 0; i < paths.size(); ++i) {
+      const auto &path = paths[i];
+      for (const auto expectedIndex : path.expectedLPEs) {
+        if (expectedIndex == aovIdx) {
+          expected[i] = true;
         }
       }
     }
 
-    m_received.resize(m_expected.size());
-  }
-  virtual ~MyAov()
-  {
-  }
-
-  virtual void write(void *flush_data, Color3 &color, float alpha,
-      bool has_color, bool has_alpha)
-  {
-    // our custom argument to write is the rule's number so we
-    // can check what. But you normally would pass information
-    // about the pixel.
-    long int testno = (long int)flush_data;
-    if (has_color && color.x > 0)
-      // only mrk with true if there is a positive color present
-      m_received[testno] = true;
-    else
-      m_received[testno] = false;
+    received.resize(expected.size());
   }
 
   bool check() const
   {
-    return m_expected == m_received;
+    return expected == received;
   }
 };
 
@@ -136,10 +121,10 @@ enum {
   custom,
   my_light,
   my_cam,
-  naovs
+  LPE_COUNT
 };
 
-struct AovDesc
+struct LpeDesc
 {
   const char *name;
   const char *lpe;
@@ -147,7 +132,7 @@ struct AovDesc
 
 // clang-format off
 
-const AovDesc aovDescs[] = 
+const LpeDesc aovDescs[] = 
 {
   {"beauty",        "C[SG]*D*<L..>"},
   {"diffuse2_3",    "C[SG]*D{2,3}L"},
@@ -162,6 +147,7 @@ const AovDesc aovDescs[] =
   {"my_light",      "C[SG]*D*<L.'my_light'>"},
   {"my_cam",        "<'my_cam'.>.*"}
 };
+static_assert(std::size(aovDescs) == LPE_COUNT);
 
 // clang-format on
 
@@ -224,94 +210,89 @@ struct JsonSerializerVisitor : public lpexp::LPexpVisitor
 
 int main()
 {
-  TestPath test1{
+  TestPath path1{
       {{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"L", "_", "1"}},
       {beauty, specular, nocaustic}};
 
-  TestPath test2{{{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"R", "G"},
+  TestPath path2{{{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"R", "G"},
                      {"L", "_", "1"}},
       {}};
 
-  TestPath test3{{{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"R", "D"},
+  TestPath path3{{{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"R", "D"},
                      {"L", "_", "1"}},
       {beauty, specular, diffuse2_3, nocaustic}};
 
-  TestPath test4{{{"C", "_"}, {"R", "G"}, {"R", "D"}, {"R", "G"}, {"R", "D"},
+  TestPath path4{{{"C", "_"}, {"R", "G"}, {"R", "D"}, {"R", "G"}, {"R", "D"},
                      {"R", "G"}, {"R", "D"}, {"L", "_", "1"}},
       {}};
 
-  TestPath test5{{{"C", "_"}, {"R", "G"}, {"R", "D"}, {"R", "G"}, {"R", "D"},
+  TestPath path5{{{"C", "_"}, {"R", "G"}, {"R", "D"}, {"R", "G"}, {"R", "D"},
                      {"L", "_", "1"}},
       {nocaustic}};
 
-  TestPath test6{{{"C", "_"}, {"R", "D"}, {"R", "D"}, {"L", "_", "1"}},
+  TestPath path6{{{"C", "_"}, {"R", "D"}, {"R", "D"}, {"L", "_", "1"}},
       {beauty, diffuse, diffuse2_3, nocaustic}};
 
-  TestPath test7{
+  TestPath path7{
       {{"C", "_"}, {"R", "D"}, {"R", "S"}, {"R", "D"}, {"L", "_", "1"}},
       {nocaustic}};
 
-  TestPath test8{
+  TestPath path8{
       {{"C", "_"}, {"R", "D"}, {"T", "s"}, {"L", "_"}}, {transpshadow}};
 
-  TestPath test9{
+  TestPath path9{
       {{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"L", "_", "3"}},
       {beauty, specular, light3, nocaustic}};
 
-  TestPath test10{{{"C", "_"}, {"R", "D", "1"}, {"R", "D"}, {"L", "_", "1"}},
+  TestPath path10{{{"C", "_"}, {"R", "D", "1"}, {"R", "D"}, {"L", "_", "1"}},
       {beauty, diffuse, diffuse2_3, object_1, nocaustic}};
 
-  TestPath test11{
+  TestPath path11{
       {{"C", "_"}, {"R", "S"}, {"R", "D"}, {"R", "G"}, {"L", "_", "1"}}, {}};
 
-  TestPath test12{{{"C", "_"}, {"R", "S"}, {"R", "D"}, {"L", "_", "1"}},
+  TestPath path12{{{"C", "_"}, {"R", "S"}, {"R", "D"}, {"L", "_", "1"}},
       {beauty, specular, reflections, nocaustic}};
 
-  TestPath test13{
+  TestPath path13{
       {{"C", "_"}, {"R", "D"}, {"R", "Y"}, {"T", "Y"}, {"U", "_"}}, {custom}};
 
-  TestPath test14{
+  TestPath path14{
       {{"C", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"}, {"L", "_", "my_light"}},
       {beauty, specular, my_light, nocaustic}};
 
-  TestPath test15{{{"my_cam", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"},
+  TestPath path15{{{"my_cam", "_"}, {"T", "S"}, {"T", "S"}, {"R", "D"},
                       {"L", "_", "my_light"}},
       {my_cam}};
 
-  std::vector<TestPath> test = {test1, test2, test3, test4, test5, test6, test7,
-      test8, test9, test10, test11, test12, test13, test14, test15};
+  std::vector<TestPath> paths = {path1, path2, path3, path4, path5, path6,
+      path7, path8, path9, path10, path11, path12, path13, path14, path15};
 
   // Create our fake testing AOV's
-  std::vector<MyAov> aovs;
-  for (int i = 0; i < naovs; ++i)
-    aovs.emplace_back(test, i, aovDescs[i].name);
-
-  // Create the automata and add the rules
-  AccumAutomata automata;
+  std::vector<LpeAov> aovs;
+  for (int i = 0; i < LPE_COUNT; ++i)
+    aovs.emplace_back(i, aovDescs[i].name, paths);
 
   std::vector<std::string> userEvents = {"U"};
   std::vector<std::string> userScatterings = {"Y"};
 
-  for (const auto &s : userEvents) {
-    automata.addEventType(s);
-  }
-  for (const auto &s : userScatterings) {
-    automata.addScatteringType(s);
-  }
+  std::list<lpexp::Rule *> rules;
 
   json lpexpJson;
 
   for (size_t i = 0; i < aovs.size(); ++i) {
-    if (!automata.addRule(aovDescs[i].lpe, int(i))) {
-      std::cerr << "addRule failed for lpe " << aovDescs[i].name << std::endl;
-    }
-
     Parser parser(&userEvents, &userScatterings);
     LPexp *e = parser.parse(aovDescs[i].lpe);
 
+    if (parser.error()) {
+      std::cerr << "[pathexp] Parse error" << parser.getErrorMsg()
+                << " at char " << parser.getErrorPos() << std::endl;
+      std::exit(-1);
+    }
+
     JsonSerializerVisitor v;
     e->accept(v);
-    delete e;
+
+    rules.push_back(new lpexp::Rule(e, (void *)(i + 1)));
 
     json object;
     object["name"] = aovDescs[i].name;
@@ -325,56 +306,54 @@ int main()
     jsonOut << lpexpJson.dump(2);
   }
 
-  automata.compile();
-
-  const std::list<AccumRule> &rules = automata.getRuleList();
-
-  std::vector<AovOutput> outputs(naovs);
-
-  // and set the AOV's for each id (beauty, diffuse2_3, etc ...)
-  for (int i = 0; i < naovs; ++i) {
-    outputs[i].aov = &aovs[i];
-    outputs[i].neg_color = false;
-    outputs[i].neg_alpha = false;
+  NdfAutomata ndfautomata;
+  for (std::list<lpexp::Rule *>::const_iterator i = rules.begin();
+       i != rules.end(); ++i) {
+    (*i)->genAuto(ndfautomata);
   }
+  DfAutomata dfautomata;
+  ndfautoToDfauto(ndfautomata, dfautomata);
+
+  DfOptimizedAutomata dfoptautomata;
+  dfoptautomata.compileFrom(dfautomata);
 
   // do the simulation for each test case
-  for (size_t i = 0; i < test.size(); ++i) {
-    for (size_t j = 0; j < outputs.size(); ++j)
-      outputs[j].reset();
-
+  for (size_t pathIdx = 0; pathIdx < paths.size(); ++pathIdx) {
     auto state = 0;
 
-    for (const auto &e : test[i].events) {
-      state = automata.getTransition(state, e.eventType);
+    for (const auto &e : paths[pathIdx].events) {
+      state = dfoptautomata.getTransition(state, e.eventType);
 
       if (state < 0) {
         break;
       }
       if (e.scatteringType) {
-        state = automata.getTransition(state, e.scatteringType);
+        state = dfoptautomata.getTransition(state, e.scatteringType);
         if (state < 0) {
           break;
         }
       }
       if (e.object) {
-        state = automata.getTransition(state, e.object);
+        state = dfoptautomata.getTransition(state, e.object);
         if (state < 0) {
           break;
         }
       }
-      state = automata.getTransition(state, Labels::STOP);
+      state = dfoptautomata.getTransition(state, Labels::STOP);
       if (state < 0) {
         break;
       }
     }
 
     if (state >= 0) {
-      automata.accum(state, Color3(1, 1, 1), outputs);
-    }
-
-    for (size_t j = 0; j < outputs.size(); ++j) {
-      outputs[j].flush((void *)(long int)i);
+      int nrules = 0;
+      void *const *rules = dfoptautomata.getRules(state, nrules);
+      // Iterate the vector
+      for (int k = 0; k < nrules; ++k) {
+        // This is where we should accumulate the color sample
+        const auto outputIdx = (int)(rules[k]) - 1;
+        aovs[outputIdx].received[pathIdx] = true;
+      }
     }
   }
 
@@ -384,11 +363,11 @@ int main()
   for (const auto &aov : aovs) {
     if (!aov.check()) {
       std::cerr << "Check failed for aov " << aov.name << std::endl;
-      for (size_t i = 0; i < aov.m_expected.size(); ++i) {
-        if (aov.m_expected[i] != aov.m_received[i]) {
+      for (size_t i = 0; i < aov.expected.size(); ++i) {
+        if (aov.expected[i] != aov.received[i]) {
           std::cerr << " - failed for path " << (i + 1) << " expected "
-                    << int(aov.m_expected[i]) << " and received "
-                    << int(aov.m_received[i]) << std::endl;
+                    << int(aov.expected[i]) << " and received "
+                    << int(aov.received[i]) << std::endl;
         }
       }
       fail = true;
