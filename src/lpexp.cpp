@@ -228,12 +228,12 @@ void NRepeat::accept(LPexpVisitor &visitor) const
 }
 
 void generateAutomata(
-    NdfAutomata &automata, const LPexp &lpe, unsigned int lpeId)
+    NdfAutomata &automata, const LPexp &lpe, unsigned int lpeIndex)
 {
   // First generate the actual automata
   FirstLast fl = lpe.genAuto(automata);
-  // now, put the rule in the last state (making it a final state)
-  fl.second->setRule(lpeId);
+  // now, put the lpe index in the last state (making it a final state)
+  fl.second->setLpeIndex(lpeIndex);
   // And then make its begin state accessible from the master initial state
   // of the automata so it becomes initial too
   automata.getInitial()->addTransition(lambda, fl.first);

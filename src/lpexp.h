@@ -305,6 +305,6 @@ public:
 } // namespace lpexp
 
 void generateAutomata(
-    NdfAutomata &automata, const lpexp::LPexp &lpe, size_t lpeId);
+    NdfAutomata &automata, const lpexp::LPexp &lpe, unsigned int lpeIndex);
 
 } // namespace LPE

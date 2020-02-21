@@ -151,10 +151,10 @@ std::string NdfAutomata::State::tostr() const
     }
     s += std::to_string(m_wildcard_trans);
   }
-  // and finally the rule if we have it
-  if (m_rule) {
+  // and finally the lpe if we have it
+  if (NO_LPE_INDEX != m_lpe_index) {
     s += " | ";
-    s += std::to_string((long unsigned int)m_rule);
+    s += std::to_string(m_lpe_index);
   }
   return s;
 }
@@ -382,10 +382,11 @@ std::string DfAutomata::State::tostr() const
     }
     s += std::to_string(m_wildcard_trans);
   }
-  // and the rules
-  if (m_rules.size()) {
+  // and the lpe indices
+  if (m_lpe_index_set.size()) {
     s += " | [";
-    for (RuleSet::const_iterator i = m_rules.begin(); i != m_rules.end(); ++i) {
+    for (LpeIndexSet::const_iterator i = m_lpe_index_set.begin();
+         i != m_lpe_index_set.end(); ++i) {
       if (s[s.size() - 1] != '[')
         s += ", ";
       s += std::to_string((long unsigned int)*i);
@@ -429,8 +430,8 @@ bool DfAutomata::equivalent(const State *dfstateA, const State *dfstateB)
                   : dfstateB->m_wildcard_trans;
   if (destA != destB)
     return false;
-  // Rules have to be the same
-  if (dfstateA->m_rules != dfstateB->m_rules)
+  // Lpe indices have to be the same
+  if (dfstateA->m_lpe_index_set != dfstateB->m_lpe_index_set)
     return false;
   for (SymbolToInt::const_iterator i = dfstateA->m_symbol_trans.begin();
        i != dfstateA->m_symbol_trans.end(); ++i) {
@@ -543,7 +544,7 @@ DfAutomata::State *StateSetRecord::ensureState(
   else {
     // if not in our records create a new DF state
     DfAutomata::State *tstate = m_dfautomata.newState();
-    getRulesFromSet(tstate, m_ndfautomata, newstates);
+    getLpeIndicesFromSet(tstate, m_ndfautomata, newstates);
     m_key_to_dfstate[newkey] = tstate;
     // Add the discovery to the list so it will be explored
     discovered.emplace_back(tstate, newstates);
@@ -551,14 +552,14 @@ DfAutomata::State *StateSetRecord::ensureState(
   }
 }
 
-void StateSetRecord::getRulesFromSet(DfAutomata::State *dfstate,
+void StateSetRecord::getLpeIndicesFromSet(DfAutomata::State *dfstate,
     const NdfAutomata &ndfautomata, const IntSet &ndfstates)
 {
   for (IntSet::const_iterator i = ndfstates.begin(); i != ndfstates.end();
        ++i) {
     const NdfAutomata::State *ndfstate = ndfautomata.getState(*i);
-    if (ndfstate->getRule())
-      dfstate->addRule(ndfstate->getRule());
+    if (ndfstate->getLpeIndex() != NdfAutomata::State::NO_LPE_INDEX)
+      dfstate->addLpeIndex(ndfstate->getLpeIndex());
   }
 }
 
@@ -626,18 +627,18 @@ void DfOptimizedAutomata::compileFrom(const DfAutomata &dfautomata)
 {
   m_states.resize(dfautomata.m_states.size());
   size_t totaltrans = 0;
-  size_t totalrules = 0;
+  size_t totallpes = 0;
   for (size_t s = 0; s < m_states.size(); ++s) {
     totaltrans += dfautomata.m_states[s]->m_symbol_trans.size();
-    totalrules += dfautomata.m_states[s]->m_rules.size();
+    totallpes += dfautomata.m_states[s]->m_lpe_index_set.size();
   }
   m_trans.resize(totaltrans);
-  m_lpes.resize(totalrules);
+  m_lpes.resize(totallpes);
   size_t trans_offset = 0;
-  size_t rules_offset = 0;
+  size_t lpe_indices_offset = 0;
   for (size_t s = 0; s < m_states.size(); ++s) {
     m_states[s].begin_trans = trans_offset;
-    m_states[s].begin_lpes = rules_offset;
+    m_states[s].begin_lpes = lpe_indices_offset;
     for (SymbolToInt::const_iterator i =
              dfautomata.m_states[s]->m_symbol_trans.begin();
          i != dfautomata.m_states[s]->m_symbol_trans.end();
@@ -645,11 +646,13 @@ void DfOptimizedAutomata::compileFrom(const DfAutomata &dfautomata)
       m_trans[trans_offset].symbol = i->first;
       m_trans[trans_offset].state = i->second;
     }
-    for (RuleSet::const_iterator i = dfautomata.m_states[s]->m_rules.begin();
-         i != dfautomata.m_states[s]->m_rules.end(); ++i, ++rules_offset)
-      m_lpes[rules_offset] = *i;
+    for (LpeIndexSet::const_iterator i =
+             dfautomata.m_states[s]->m_lpe_index_set.begin();
+         i != dfautomata.m_states[s]->m_lpe_index_set.end();
+         ++i, ++lpe_indices_offset)
+      m_lpes[lpe_indices_offset] = *i;
     m_states[s].ntrans = dfautomata.m_states[s]->m_symbol_trans.size();
-    m_states[s].nlpes = dfautomata.m_states[s]->m_rules.size();
+    m_states[s].nlpes = dfautomata.m_states[s]->m_lpe_index_set.size();
     std::sort(m_trans.begin() + m_states[s].begin_trans,
         m_trans.begin() + m_states[s].begin_trans + m_states[s].ntrans,
         DfOptimizedAutomata::Transition::trans_comp);

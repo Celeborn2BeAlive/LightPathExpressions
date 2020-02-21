@@ -84,7 +84,7 @@ public:
     return mystate.wildcard_trans;
   }
 
-  unsigned int const *getRules(int state, unsigned int &count) const
+  unsigned int const *getLpesInState(int state, unsigned int &count) const
   {
     count = m_states[state].nlpes;
     return &m_lpes[m_states[state].begin_lpes];

@@ -53,10 +53,10 @@ typedef std::unordered_map<std::string, int> SymbolToInt;
 typedef std::unordered_map<std::string, IntSet> SymbolToIntList;
 typedef std::unordered_map<int, int> HashIntInt;
 
-// For the rules in the deterministic states, we don't need a real set
+// For the lpe indices in the deterministic states, we don't need a real set
 // cause when converting from the NDF automata we will never find the same
-// rule twice
-typedef std::vector<unsigned int> RuleSet;
+// lpe index twice
+typedef std::vector<unsigned int> LpeIndexSet;
 
 // The lambda symbol (empty word)
 extern std::string lambda;
@@ -94,12 +94,14 @@ public:
     friend class NdfAutomata;
 
   public:
+    static const unsigned int NO_LPE_INDEX = (unsigned int)(-1);
+
     State(int id)
     {
       m_id = id;
       m_wildcard_trans = -1;
       m_wildcard = NULL;
-      m_rule = NULL;
+      m_lpe_index = NO_LPE_INDEX;
     };
     ~State()
     {
@@ -127,16 +129,15 @@ public:
     /// have to delete ir
     void addWildcardTransition(Wildcard *wildcard, State *state);
 
-    /// For final states, this sets the associated rule. Which
-    /// can be any kind of pointer
-    void setRule(unsigned int rule)
+    /// For final states, this sets the associated lpe index.
+    void setLpeIndex(unsigned int lpe_index)
     {
-      m_rule = rule;
+      m_lpe_index = lpe_index;
     };
 
-    unsigned int getRule() const
+    unsigned int getLpeIndex() const
     {
-      return m_rule;
+      return m_lpe_index;
     };
     int getId() const
     {
@@ -156,8 +157,8 @@ public:
     int m_wildcard_trans;
     // Wildcard (NULL if no wildcard transition present)
     Wildcard *m_wildcard;
-    // Associated rule for final states, (unsigned int) -1 if not final
-    unsigned int m_rule;
+    // Associated lpe index for final states, NO_LPE_INDEX if not final
+    unsigned int m_lpe_index;
   };
 
   NdfAutomata()
@@ -270,13 +271,13 @@ public:
     /// the single symbol transitions. This function performs that optimization
     void removeUselessTransitions();
 
-    void addRule(unsigned int rule)
+    void addLpeIndex(unsigned int lpe_index)
     {
-      m_rules.push_back(rule);
+      m_lpe_index_set.push_back(lpe_index);
     };
-    const RuleSet &getRules() const
+    const LpeIndexSet &getLpeIndexSet() const
     {
-      return m_rules;
+      return m_lpe_index_set;
     };
     int getId() const
     {
@@ -291,8 +292,8 @@ public:
     int m_wildcard_trans;
     // A final state here might contain several final states
     // from the original NDF automata. Therefore, we need a list
-    // of rules here
-    RuleSet m_rules;
+    // of lpe inddices here
+    LpeIndexSet m_lpe_index_set;
   };
 
   DfAutomata(){};
@@ -354,9 +355,9 @@ public:
       const IntSet &newstates, std::list<Discovery> &discovered);
 
 private:
-  /// Gather all the rules from the original automata in the given sets (if any)
-  /// and put them in the dfstate rule set
-  void getRulesFromSet(DfAutomata::State *dfstate,
+  /// Gather all the lpe indices from the original automata in the given sets
+  /// (if any) and put them in the dfstate lpe index set
+  void getLpeIndicesFromSet(DfAutomata::State *dfstate,
       const NdfAutomata &ndfautomata, const IntSet &ndfstates);
 
   const NdfAutomata &m_ndfautomata;
