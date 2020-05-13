@@ -199,9 +199,7 @@ class NRepeat : public LPexp
 {
 public:
   NRepeat(LPexp *child, int min, int max) :
-      m_child(child),
-      m_min(min),
-      m_max(max){};
+      m_child(child), m_min(min), m_max(max){};
   virtual ~NRepeat()
   {
     delete m_child;
@@ -229,7 +227,6 @@ public:
 
   virtual bool enter(const LPexp &exp)
   {
-    enter(static_cast<const LPexp &>(exp));
     return true;
   };
 
